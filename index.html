@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Chroma Garage</title>
+<style>
+:root{--bg:#0d1320;--panel:#172131;--panel2:#1f2c42;--ink:#eef3fb;--mut:#93a3bd;--acc:#2ee6d6;--bad:#ff5a6e;--gold:#ffd23f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:640px;margin:0 auto;padding:0 12px}
+#hud{display:flex;align-items:center;gap:10px;height:54px;flex:none}
+#mvbar{height:5px;border-radius:9px;background:#1d2840;overflow:hidden;flex:none;margin:0 2px 6px}#mvbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#2ee6d6,#5fb3ff);border-radius:9px;transition:width .25s ease,background .25s}#mvbar.low i{background:linear-gradient(90deg,#ff7a59,#ff5a6e)}
+#hud .lv{font-weight:800;font-size:18px;flex:1;text-align:center;letter-spacing:.2px}
+#mv{font-weight:800;min-width:92px;font-size:15px}
+#mv.low{color:var(--bad)}
+#coins{font-weight:800;color:var(--gold);min-width:50px;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:5px}#coins.pop{animation:pop .45s ease}
+.savest{background:none;border:0;color:#6fcf97;font-size:13px;padding:0 2px;min-width:16px;opacity:.55;cursor:pointer}.savest.flash{opacity:1}.savest.bad{color:#ff7a7a;opacity:1}
+.restore{font-size:12px;color:#8fa3c4;text-align:center;margin:-2px 0 0}
+#queue{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;flex:none;padding:2px 0 6px;min-height:30px}
+#queue i{font-style:normal;font-weight:800;font-size:12px;min-width:26px;height:26px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#0b1220}
+#queue i.done{opacity:.25;text-decoration:line-through}
+#queue i.next{outline:3px solid #fff;outline-offset:1px}
+#tut{flex:none;margin:0 0 6px}
+#tut .b{background:var(--panel2);border:1px solid #2f4262;border-radius:14px;padding:9px 12px;font-size:14px;line-height:1.35;display:flex;gap:10px;align-items:center}
+#tut .b span{flex:1}
+#board{flex:1;min-height:0;position:relative}
+#app.fixh #board{min-height:min(260px,45vh)}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#bar{display:flex;gap:8px;height:66px;flex:none;align-items:center;padding-bottom:max(6px,env(safe-area-inset-bottom))}
+button{font:inherit;color:var(--ink);background:var(--panel2);border:1px solid #2f4262;border-radius:12px;min-height:46px;padding:0 12px;cursor:pointer;font-weight:700}
+button:hover{background:#27385a}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+button.pri{background:var(--acc);color:#05201d;border-color:var(--acc)}
+button.ad{background:transparent;border-color:#3a4a6b;color:#b9c6dc;font-weight:600}
+button.sm{min-height:38px;font-size:13px}
+button{transition:transform .08s ease,background .15s}
+button:active{transform:scale(.96)}
+#bar button{flex:1;white-space:nowrap;font-size:11px;padding:4px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.1;font-weight:700;color:#cfe0f7}
+#bar button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#bar button .lb{opacity:.92}
+.ico{width:46px;padding:0;font-size:20px}
+#ov{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,9,16,.78);padding:16px;overflow:auto;z-index:5}
+#ov.on{display:flex}#ov.soft{background:rgba(5,9,16,.5)}
+.box{overscroll-behavior:contain;background:var(--panel);border:1px solid #2a3a58;border-radius:20px;padding:20px;width:min(440px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.box h2{margin:0;font-size:24px;text-align:center}
+.logo{font-size:34px;font-weight:900;text-align:center;line-height:1.05;background:linear-gradient(90deg,#2ee6d6,#5fb3ff 40%,#ff5fa2 75%,#ffd23f);-webkit-background-clip:text;background-clip:text;color:transparent;margin:2px 0 4px}
+.stars span{display:inline-block;animation:starIn .45s cubic-bezier(.2,1.6,.4,1) both}.stars span:nth-child(2){animation-delay:.15s}.stars span:nth-child(3){animation-delay:.3s}.stars .off{color:#3a4a6b}
+@keyframes starIn{0%{transform:scale(0) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+.box{animation:boxIn .22s ease both}@keyframes boxIn{0%{transform:translateY(10px) scale(.97);opacity:0}100%{transform:none;opacity:1}}
+.lvgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;max-height:52vh;overflow:auto;padding:2px}
+.lvgrid button{min-height:52px;padding:4px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:15px;border-radius:12px}
+.lvgrid button small{font-size:10px;color:var(--gold);letter-spacing:1px}.lvgrid button.t1{border-color:#8a7420}.lvgrid button.t2{border-color:#8a2f3c}.lvgrid button.cur{outline:2px solid var(--acc)}
+.box p{margin:0;color:var(--mut);font-size:14px;line-height:1.45;text-align:center}
+.stars{font-size:38px;text-align:center;letter-spacing:6px;color:var(--gold)}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between}
+table{width:100%;border-collapse:collapse;font-size:13px}td{padding:4px 2px;border-bottom:1px solid #243452}td:last-child{text-align:right;font-weight:700}
+.tag{display:inline-block;background:#4a2330;color:#ffb3bf;border-radius:8px;padding:6px 10px;font-size:12px;text-align:center}
+.cd{font-size:56px;font-weight:800;text-align:center;color:var(--acc)}
+.fin{color:#ffd23f;font-weight:700;text-align:center}
+.tag2{font-size:12px;color:#8fa3c4;margin:-4px 0 0;text-align:center}
+.tap{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.tap div{aspect-ratio:1;border-radius:6px;background:#1b273b;border:1px dashed #33476a;display:flex;align-items:center;justify-content:center;font-size:10px;color:#4f6485}
+.tap div.on{border:1px solid rgba(0,0,0,.35);color:transparent}
+#toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:var(--gold);color:#2b2200;font-weight:800;padding:8px 14px;border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:6}
+#toast.on{opacity:1}
+@media (max-height:600px){#hud{height:44px}#bar{height:56px}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud">
+    <button class="ico" id="bMenu" aria-label="Menú">☰</button>
+    <div id="mv">0 / 0</div>
+    <div class="lv" id="lv">Nivel 1</div>
+    <div id="coins">0 ●</div><button id="savest" class="savest" aria-label="Guardado">·</button>
+  </div>
+  <div id="mvbar"><i></i></div>
+  <div id="queue" aria-label="Orden de salida"></div>
+  <div id="tut"></div>
+  <div id="board"><canvas id="c" aria-label="Tablero: arrastrá cada auto por su carril"></canvas></div>
+  <div id="bar">
+    <button id="bUndo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="lb">Deshacer · gratis</span></button>
+    <button id="bHint"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.8 10.6c.6.6.8 1.3.8 2.4h6c0-1.1.2-1.8.8-2.4A6 6 0 0 0 12 3z"/></svg><span class="lb">Pista · gratis</span></button>
+    <button id="bMoves"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span class="lb">+3 mov · 15 ●</span></button>
+    <button id="bRestart"><svg viewBox="0 0 24 24"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/></svg><span class="lb">Reiniciar</span></button>
+  </div>
+</div>
+<div id="ov"></div>
+<div id="toast"></div>
+<script id="coreSrc" type="text/plain">/* Núcleo de Garage 2: deslizar autos por su eje; los autos salen EN ORDEN (cola 1,2,3…).
+   Auto: {x,y,len,h(1=horizontal),ex(+1/-1 extremo de salida),c(color)}; el índice en el arreglo = turno de salida.
+   Un auto sale cuando está pegado a su puerta (extremo) y es su turno. */
+function axisSize(c,cols,rows){return c.h?cols:rows}
+function startPos(c){return c.h?c.x:c.y}
+function dockPos(c,cols,rows){return c.ex>0?axisSize(c,cols,rows)-c.len:0}
+function cellsAt(c,p){const a=[];for(let i=0;i<c.len;i++)a.push(c.h?[p+i,c.y]:[c.x,p+i]);return a}
+function occupy(cars,pos,cols,rows){const g=new Int8Array(cols*rows).fill(-1);for(let i=0;i<cars.length;i++){if(pos[i]===-1)continue;for(const[x,y]of cellsAt(cars[i],pos[i]))g[y*cols+x]=i}return g}
+function carMoves(cars,pos,i,g,cols,rows){
+  const c=cars[i],p=pos[i],m=axisSize(c,cols,rows)-c.len,out=[];
+  const cell=a=>c.h?g[c.y*cols+a]:g[a*cols+c.x];
+  for(const d of[-1,1]){let q=p;while(true){const nq=q+d;if(nq<0||nq>m)break;const lead=d<0?nq:nq+c.len-1;if(cell(lead)!==-1)break;q=nq;out.push(q)}}
+  return out;
+}
+// aplica un movimiento y expulsa en cascada a los autos que están en su puerta y les toca
+function applyMove(cars,pos,i,p,cols,rows){
+  const np=pos.slice();np[i]=p;
+  while(true){let nx=-1;for(let k=0;k<np.length;k++)if(np[k]!==-1){nx=k;break}
+    if(nx<0)break;if(np[nx]===dockPos(cars[nx],cols,rows))np[nx]=-1;else break}
+  return np;
+}
+function settle(cars,pos,cols,rows){return applyMove(cars,pos,0,pos[0],cols,rows)}
+function keyOf(pos){let s='';for(const p of pos)s+=p<0?'~':String.fromCharCode(48+p);return s}
+function solve(cars,cols,rows,start,cap){
+  const n=cars.length;cap=cap||300000;
+  start=settle(cars,start||cars.map(startPos),cols,rows);
+  if(start.every(p=>p<0))return{opt:0,path:[],states:1};
+  const par=new Map();par.set(keyOf(start),null);
+  let layer=[start],steps=0,states=1;
+  while(layer.length){
+    const next=[];steps++;
+    for(const pos of layer){
+      const kk=keyOf(pos),g=occupy(cars,pos,cols,rows);
+      for(let i=0;i<n;i++){
+        if(pos[i]<0)continue;
+        for(const q of carMoves(cars,pos,i,g,cols,rows)){
+          const np=applyMove(cars,pos,i,q,cols,rows),nk=keyOf(np);
+          if(par.has(nk))continue;
+          par.set(nk,{prev:kk,i,p:q});states++;
+          if(np.every(v=>v<0)){const path=[];let cur=nk;while(par.get(cur)){const e=par.get(cur);path.push({i:e.i,p:e.p});cur=e.prev}path.reverse();return{opt:steps,path,states}}
+          if(states>cap)return null;
+          next.push(np);
+        }
+      }
+    }
+    layer=next;
+  }
+  return null;
+}
+</script>
+<script>
+/* Núcleo de Garage 2: deslizar autos por su eje; los autos salen EN ORDEN (cola 1,2,3…).
+   Auto: {x,y,len,h(1=horizontal),ex(+1/-1 extremo de salida),c(color)}; el índice en el arreglo = turno de salida.
+   Un auto sale cuando está pegado a su puerta (extremo) y es su turno. */
+function axisSize(c,cols,rows){return c.h?cols:rows}
+function startPos(c){return c.h?c.x:c.y}
+function dockPos(c,cols,rows){return c.ex>0?axisSize(c,cols,rows)-c.len:0}
+function cellsAt(c,p){const a=[];for(let i=0;i<c.len;i++)a.push(c.h?[p+i,c.y]:[c.x,p+i]);return a}
+function occupy(cars,pos,cols,rows){const g=new Int8Array(cols*rows).fill(-1);for(let i=0;i<cars.length;i++){if(pos[i]===-1)continue;for(const[x,y]of cellsAt(cars[i],pos[i]))g[y*cols+x]=i}return g}
+function carMoves(cars,pos,i,g,cols,rows){
+  const c=cars[i],p=pos[i],m=axisSize(c,cols,rows)-c.len,out=[];
+  const cell=a=>c.h?g[c.y*cols+a]:g[a*cols+c.x];
+  for(const d of[-1,1]){let q=p;while(true){const nq=q+d;if(nq<0||nq>m)break;const lead=d<0?nq:nq+c.len-1;if(cell(lead)!==-1)break;q=nq;out.push(q)}}
+  return out;
+}
+// aplica un movimiento y expulsa en cascada a los autos que están en su puerta y les toca
+function applyMove(cars,pos,i,p,cols,rows){
+  const np=pos.slice();np[i]=p;
+  while(true){let nx=-1;for(let k=0;k<np.length;k++)if(np[k]!==-1){nx=k;break}
+    if(nx<0)break;if(np[nx]===dockPos(cars[nx],cols,rows))np[nx]=-1;else break}
+  return np;
+}
+function settle(cars,pos,cols,rows){return applyMove(cars,pos,0,pos[0],cols,rows)}
+function keyOf(pos){let s='';for(const p of pos)s+=p<0?'~':String.fromCharCode(48+p);return s}
+function solve(cars,cols,rows,start,cap){
+  const n=cars.length;cap=cap||300000;
+  start=settle(cars,start||cars.map(startPos),cols,rows);
+  if(start.every(p=>p<0))return{opt:0,path:[],states:1};
+  const par=new Map();par.set(keyOf(start),null);
+  let layer=[start],steps=0,states=1;
+  while(layer.length){
+    const next=[];steps++;
+    for(const pos of layer){
+      const kk=keyOf(pos),g=occupy(cars,pos,cols,rows);
+      for(let i=0;i<n;i++){
+        if(pos[i]<0)continue;
+        for(const q of carMoves(cars,pos,i,g,cols,rows)){
+          const np=applyMove(cars,pos,i,q,cols,rows),nk=keyOf(np);
+          if(par.has(nk))continue;
+          par.set(nk,{prev:kk,i,p:q});states++;
+          if(np.every(v=>v<0)){const path=[];let cur=nk;while(par.get(cur)){const e=par.get(cur);path.push({i:e.i,p:e.p});cur=e.prev}path.reverse();return{opt:steps,path,states}}
+          if(states>cap)return null;
+          next.push(np);
+        }
+      }
+    }
+    layer=next;
+  }
+  return null;
+}
+
+const LEVELS=[{"cols":6,"rows":6,"cars":[{"x":2,"y":0,"len":3,"h":0,"ex":1},{"x":4,"y":0,"len":2,"h":1,"ex":-1},{"x":4,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":5,"len":2,"h":1,"ex":1}],"src":"v23","opt":5,"dm":2,"gap":5},{"cols":6,"rows":6,"cars":[{"x":5,"y":1,"len":2,"h":0,"ex":1},{"x":1,"y":2,"len":2,"h":1,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":-1},{"x":0,"y":2,"len":3,"h":0,"ex":1}],"src":"v23","opt":6,"dm":2,"gap":2},{"cols":6,"rows":6,"cars":[{"x":3,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":2,"len":2,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":1,"ex":-1},{"x":0,"y":0,"len":2,"h":0,"ex":1}],"src":"v23","opt":4,"dm":3,"gap":4},{"cols":6,"rows":6,"cars":[{"x":4,"y":3,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":1,"ex":-1},{"x":5,"y":0,"len":2,"h":0,"ex":1},{"x":3,"y":3,"len":2,"h":0,"ex":-1},{"x":2,"y":2,"len":3,"h":1,"ex":1},{"x":1,"y":4,"len":2,"h":1,"ex":-1},{"x":3,"y":5,"len":3,"h":1,"ex":-1},{"x":0,"y":0,"len":2,"h":1,"ex":1}],"src":"v23","opt":9,"dm":2,"gap":4},{"cols":6,"rows":6,"cars":[{"x":5,"y":2,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":3,"y":1,"len":3,"h":1,"ex":-1},{"x":1,"y":4,"len":2,"h":1,"ex":1}],"src":"v23","opt":8,"dm":3,"gap":3},{"cols":6,"rows":6,"cars":[{"x":1,"y":2,"len":2,"h":1,"ex":-1},{"x":2,"y":0,"len":3,"h":1,"ex":1},{"x":3,"y":2,"len":2,"h":0,"ex":-1},{"x":1,"y":1,"len":3,"h":1,"ex":-1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":4,"y":4,"len":2,"h":0,"ex":-1},{"x":0,"y":2,"len":2,"h":0,"ex":-1},{"x":1,"y":4,"len":2,"h":1,"ex":1}],"src":"cand_1_8.json","opt":9,"dm":2,"gap":4},{"cols":6,"rows":6,"cars":[{"x":2,"y":3,"len":2,"h":0,"ex":-1},{"x":0,"y":1,"len":3,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":1,"ex":1},{"x":5,"y":1,"len":3,"h":0,"ex":-1},{"x":1,"y":2,"len":2,"h":1,"ex":-1}],"src":"v23","opt":7,"dm":3,"gap":5},{"cols":6,"rows":6,"cars":[{"x":2,"y":2,"len":2,"h":1,"ex":-1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":1,"y":0,"len":2,"h":0,"ex":1},{"x":3,"y":1,"len":3,"h":1,"ex":-1},{"x":1,"y":4,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":1}],"src":"cand_1_9.json","opt":9,"dm":2,"gap":5},{"cols":6,"rows":6,"cars":[{"x":0,"y":0,"len":2,"h":1,"ex":1},{"x":3,"y":5,"len":3,"h":1,"ex":-1},{"x":1,"y":3,"len":3,"h":0,"ex":-1},{"x":3,"y":3,"len":2,"h":0,"ex":-1},{"x":0,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":0,"len":2,"h":0,"ex":1},{"x":0,"y":1,"len":2,"h":0,"ex":1},{"x":4,"y":2,"len":2,"h":1,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1}],"src":"v23","opt":10,"dm":2,"gap":2},{"cols":6,"rows":6,"cars":[{"x":3,"y":0,"len":3,"h":1,"ex":-1},{"x":4,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":4,"len":2,"h":1,"ex":1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":3,"h":1,"ex":1},{"x":4,"y":1,"len":2,"h":0,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":4,"y":5,"len":2,"h":1,"ex":-1},{"x":5,"y":1,"len":3,"h":0,"ex":-1},{"x":1,"y":1,"len":2,"h":0,"ex":1}],"src":"v23","opt":10,"dm":2,"gap":4},{"cols":6,"rows":6,"cars":[{"x":3,"y":0,"len":3,"h":1,"ex":-1},{"x":4,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":4,"len":2,"h":1,"ex":1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":3,"h":1,"ex":1},{"x":4,"y":1,"len":2,"h":0,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":5,"len":2,"h":1,"ex":-1},{"x":5,"y":1,"len":3,"h":0,"ex":-1},{"x":1,"y":1,"len":2,"h":0,"ex":-1}],"src":"hard_1_22.json","opt":10,"dm":2,"gap":4},{"cols":6,"rows":6,"cars":[{"x":4,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":0,"y":1,"len":2,"h":1,"ex":1},{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":5,"len":2,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1}],"src":"cand_1_8.json","opt":8,"dm":3,"gap":5},{"cols":6,"rows":6,"cars":[{"x":4,"y":2,"len":2,"h":0,"ex":-1},{"x":4,"y":5,"len":2,"h":1,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":-1},{"x":1,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":0,"len":3,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":1,"ex":1}],"src":"cand_1_8.json","opt":9,"dm":3,"gap":3},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":3,"h":0,"ex":1},{"x":2,"y":4,"len":2,"h":1,"ex":-1},{"x":2,"y":5,"len":2,"h":1,"ex":1},{"x":5,"y":1,"len":3,"h":0,"ex":-1},{"x":0,"y":2,"len":3,"h":0,"ex":1},{"x":5,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":0,"len":2,"h":1,"ex":1},{"x":2,"y":2,"len":2,"h":1,"ex":1},{"x":2,"y":3,"len":2,"h":1,"ex":-1}],"src":"cand_2_14.json","opt":11,"dm":2,"gap":3},{"cols":6,"rows":6,"cars":[{"x":1,"y":2,"len":2,"h":0,"ex":-1},{"x":1,"y":1,"len":3,"h":1,"ex":-1},{"x":2,"y":5,"len":2,"h":1,"ex":1},{"x":2,"y":4,"len":2,"h":1,"ex":1},{"x":2,"y":2,"len":2,"h":0,"ex":1},{"x":3,"y":2,"len":3,"h":1,"ex":-1},{"x":3,"y":0,"len":3,"h":1,"ex":-1},{"x":5,"y":4,"len":2,"h":0,"ex":-1}],"src":"cand_2_14.json","opt":11,"dm":2,"gap":7},{"cols":6,"rows":6,"cars":[{"x":2,"y":3,"len":2,"h":1,"ex":-1},{"x":1,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":5,"len":3,"h":1,"ex":-1},{"x":4,"y":3,"len":2,"h":0,"ex":1},{"x":1,"y":1,"len":2,"h":1,"ex":-1},{"x":0,"y":0,"len":3,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":-1}],"src":"v23","opt":10,"dm":2,"gap":7},{"cols":6,"rows":6,"cars":[{"x":1,"y":1,"len":2,"h":1,"ex":-1},{"x":4,"y":3,"len":2,"h":0,"ex":1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":0,"y":2,"len":3,"h":0,"ex":-1},{"x":1,"y":3,"len":3,"h":0,"ex":-1},{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":2,"y":2,"len":2,"h":1,"ex":1},{"x":3,"y":5,"len":2,"h":1,"ex":-1},{"x":2,"y":4,"len":2,"h":1,"ex":1},{"x":2,"y":3,"len":2,"h":1,"ex":-1}],"src":"hard_3_24.json","opt":10,"dm":2,"gap":7},{"cols":6,"rows":6,"cars":[{"x":1,"y":3,"len":2,"h":0,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":1,"len":3,"h":0,"ex":-1},{"x":1,"y":0,"len":3,"h":1,"ex":1},{"x":1,"y":5,"len":2,"h":1,"ex":-1},{"x":3,"y":2,"len":2,"h":0,"ex":1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":4,"y":5,"len":2,"h":1,"ex":-1},{"x":1,"y":1,"len":2,"h":0,"ex":1},{"x":3,"y":1,"len":2,"h":1,"ex":1}],"src":"hard_2_22.json","opt":11,"dm":2,"gap":5},{"cols":6,"rows":6,"cars":[{"x":5,"y":3,"len":3,"h":0,"ex":-1},{"x":2,"y":3,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":3,"h":0,"ex":-1},{"x":0,"y":0,"len":3,"h":1,"ex":1},{"x":1,"y":1,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":1,"ex":-1},{"x":0,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":1},{"x":3,"y":2,"len":3,"h":1,"ex":-1}],"src":"v23","opt":10,"dm":3,"gap":3},{"cols":6,"rows":6,"cars":[{"x":2,"y":3,"len":2,"h":0,"ex":1},{"x":0,"y":1,"len":3,"h":0,"ex":-1},{"x":3,"y":5,"len":2,"h":1,"ex":-1},{"x":3,"y":1,"len":3,"h":0,"ex":-1},{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":0,"y":0,"len":3,"h":1,"ex":1},{"x":1,"y":1,"len":3,"h":0,"ex":-1},{"x":0,"y":4,"len":2,"h":0,"ex":-1}],"src":"cand_1_8.json","opt":12,"dm":2,"gap":4},{"cols":6,"rows":6,"cars":[{"x":2,"y":3,"len":2,"h":0,"ex":1},{"x":0,"y":1,"len":3,"h":0,"ex":-1},{"x":3,"y":5,"len":2,"h":1,"ex":-1},{"x":3,"y":1,"len":3,"h":0,"ex":-1},{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":5,"y":3,"len":3,"h":0,"ex":-1},{"x":0,"y":0,"len":3,"h":1,"ex":1},{"x":1,"y":1,"len":3,"h":0,"ex":-1},{"x":0,"y":4,"len":2,"h":0,"ex":-1}],"src":"hard_1_22.json","opt":12,"dm":2,"gap":4},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":2,"h":0,"ex":1},{"x":0,"y":5,"len":2,"h":1,"ex":1},{"x":1,"y":1,"len":3,"h":0,"ex":1},{"x":1,"y":4,"len":2,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":0,"ex":-1},{"x":5,"y":2,"len":2,"h":0,"ex":-1},{"x":5,"y":4,"len":2,"h":0,"ex":-1},{"x":0,"y":0,"len":3,"h":0,"ex":1}],"src":"cand_1_9.json","opt":10,"dm":3,"gap":5},{"cols":6,"rows":6,"cars":[{"x":0,"y":0,"len":2,"h":1,"ex":1},{"x":2,"y":5,"len":2,"h":1,"ex":1},{"x":2,"y":2,"len":3,"h":0,"ex":-1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":0,"y":5,"len":2,"h":1,"ex":1},{"x":1,"y":2,"len":3,"h":0,"ex":-1},{"x":0,"y":2,"len":3,"h":0,"ex":1},{"x":3,"y":0,"len":2,"h":0,"ex":1},{"x":3,"y":3,"len":2,"h":1,"ex":1},{"x":5,"y":4,"len":2,"h":0,"ex":-1}],"src":"hard_4_24.json","opt":12,"dm":2,"gap":5},{"cols":6,"rows":6,"cars":[{"x":2,"y":2,"len":2,"h":1,"ex":-1},{"x":1,"y":2,"len":2,"h":0,"ex":-1},{"x":2,"y":5,"len":3,"h":1,"ex":-1},{"x":1,"y":1,"len":3,"h":1,"ex":1},{"x":4,"y":2,"len":3,"h":0,"ex":1},{"x":0,"y":2,"len":2,"h":0,"ex":1},{"x":5,"y":2,"len":2,"h":0,"ex":1},{"x":2,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":3,"len":2,"h":0,"ex":1}],"src":"cand_2_14.json","opt":10,"dm":3,"gap":6},{"cols":6,"rows":6,"cars":[{"x":1,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":-1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":1,"len":2,"h":1,"ex":1},{"x":0,"y":2,"len":3,"h":0,"ex":1},{"x":2,"y":0,"len":3,"h":0,"ex":1},{"x":3,"y":0,"len":2,"h":1,"ex":-1},{"x":1,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":2,"len":2,"h":0,"ex":1}],"src":"cand_1_9.json","opt":12,"dm":3,"gap":5},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":3,"h":0,"ex":1},{"x":1,"y":1,"len":2,"h":0,"ex":1},{"x":3,"y":5,"len":2,"h":1,"ex":1},{"x":5,"y":1,"len":3,"h":0,"ex":-1},{"x":0,"y":2,"len":3,"h":0,"ex":1},{"x":5,"y":4,"len":2,"h":0,"ex":-1},{"x":1,"y":0,"len":2,"h":1,"ex":1},{"x":2,"y":1,"len":2,"h":0,"ex":1},{"x":1,"y":3,"len":2,"h":1,"ex":-1}],"src":"hard_2_22.json","opt":12,"dm":2,"gap":6},{"cols":6,"rows":6,"cars":[{"x":1,"y":0,"len":2,"h":1,"ex":-1},{"x":3,"y":2,"len":2,"h":1,"ex":1},{"x":1,"y":3,"len":3,"h":0,"ex":-1},{"x":1,"y":2,"len":2,"h":1,"ex":1},{"x":3,"y":4,"len":2,"h":0,"ex":-1},{"x":0,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":2,"h":1,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":-1},{"x":2,"y":3,"len":2,"h":0,"ex":-1}],"src":"v23","opt":11,"dm":3,"gap":4},{"cols":6,"rows":6,"cars":[{"x":3,"y":1,"len":3,"h":0,"ex":1},{"x":2,"y":2,"len":2,"h":0,"ex":1},{"x":3,"y":5,"len":2,"h":1,"ex":1},{"x":1,"y":0,"len":2,"h":0,"ex":1},{"x":1,"y":5,"len":2,"h":1,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":4,"len":2,"h":1,"ex":-1}],"src":"v23","opt":11,"dm":3,"gap":6},{"cols":6,"rows":6,"cars":[{"x":1,"y":2,"len":2,"h":0,"ex":-1},{"x":0,"y":4,"len":2,"h":1,"ex":1},{"x":1,"y":1,"len":3,"h":1,"ex":1},{"x":1,"y":5,"len":2,"h":1,"ex":1},{"x":4,"y":1,"len":3,"h":0,"ex":-1},{"x":5,"y":1,"len":2,"h":0,"ex":1}],"src":"v23","opt":12,"dm":3,"gap":4},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":1},{"x":0,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":0,"len":3,"h":1,"ex":-1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":1,"y":5,"len":2,"h":1,"ex":-1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":0,"y":4,"len":3,"h":1,"ex":1},{"x":3,"y":2,"len":2,"h":0,"ex":-1}],"src":"hard_4_24.json","opt":12,"dm":3,"gap":5},{"cols":6,"rows":6,"cars":[{"x":1,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":-1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":1,"len":2,"h":1,"ex":1},{"x":0,"y":2,"len":3,"h":0,"ex":1},{"x":2,"y":1,"len":3,"h":0,"ex":1},{"x":4,"y":0,"len":2,"h":1,"ex":-1},{"x":1,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":2,"len":2,"h":0,"ex":1}],"src":"hard_1_22.json","opt":12,"dm":3,"gap":6},{"cols":6,"rows":6,"cars":[{"x":2,"y":4,"len":2,"h":1,"ex":-1},{"x":2,"y":0,"len":2,"h":1,"ex":-1},{"x":2,"y":1,"len":3,"h":0,"ex":1},{"x":3,"y":3,"len":3,"h":1,"ex":-1},{"x":1,"y":3,"len":2,"h":0,"ex":1},{"x":1,"y":5,"len":3,"h":1,"ex":-1},{"x":4,"y":1,"len":2,"h":1,"ex":-1},{"x":4,"y":4,"len":2,"h":1,"ex":-1},{"x":0,"y":2,"len":2,"h":0,"ex":1}],"src":"v23","opt":13,"dm":3,"gap":4},{"cols":6,"rows":6,"cars":[{"x":1,"y":2,"len":2,"h":1,"ex":-1},{"x":2,"y":0,"len":3,"h":1,"ex":1},{"x":5,"y":2,"len":3,"h":0,"ex":1},{"x":3,"y":3,"len":3,"h":0,"ex":-1},{"x":0,"y":1,"len":3,"h":1,"ex":1},{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":2,"len":2,"h":1,"ex":-1},{"x":0,"y":2,"len":3,"h":0,"ex":1},{"x":4,"y":5,"len":2,"h":1,"ex":-1}],"src":"v23","opt":11,"dm":4,"gap":4},{"cols":6,"rows":6,"cars":[{"x":1,"y":2,"len":2,"h":0,"ex":1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":1,"y":5,"len":2,"h":1,"ex":1},{"x":2,"y":3,"len":3,"h":1,"ex":1},{"x":1,"y":0,"len":3,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":1,"ex":1},{"x":4,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":2,"len":3,"h":1,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1}],"src":"v23","opt":14,"dm":3,"gap":4},{"cols":6,"rows":6,"cars":[{"x":5,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":2,"len":2,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":4,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":1,"len":3,"h":1,"ex":-1},{"x":1,"y":0,"len":2,"h":1,"ex":1},{"x":3,"y":2,"len":2,"h":1,"ex":1},{"x":1,"y":5,"len":3,"h":1,"ex":-1},{"x":0,"y":4,"len":3,"h":1,"ex":1},{"x":0,"y":2,"len":2,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":1,"ex":1}],"src":"cand_4_30.json","opt":16,"dm":2,"gap":7},{"cols":6,"rows":6,"cars":[{"x":1,"y":1,"len":2,"h":0,"ex":-1},{"x":4,"y":3,"len":2,"h":1,"ex":-1},{"x":4,"y":2,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":-1},{"x":2,"y":0,"len":2,"h":1,"ex":1},{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":3,"h":0,"ex":-1},{"x":0,"y":0,"len":2,"h":1,"ex":1},{"x":5,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":3,"h":1,"ex":-1}],"src":"v23","opt":14,"dm":3,"gap":4},{"cols":6,"rows":6,"cars":[{"x":3,"y":2,"len":2,"h":1,"ex":-1},{"x":1,"y":2,"len":2,"h":0,"ex":1},{"x":4,"y":4,"len":2,"h":1,"ex":-1},{"x":2,"y":2,"len":3,"h":0,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":-1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":3,"y":1,"len":2,"h":1,"ex":1},{"x":2,"y":5,"len":2,"h":1,"ex":-1}],"src":"v23","opt":10,"dm":5,"gap":5},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":0,"y":4,"len":2,"h":1,"ex":1},{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":0,"y":5,"len":3,"h":1,"ex":1},{"x":3,"y":2,"len":3,"h":0,"ex":1},{"x":2,"y":2,"len":2,"h":0,"ex":-1},{"x":1,"y":1,"len":3,"h":0,"ex":-1},{"x":1,"y":0,"len":2,"h":1,"ex":-1}],"src":"v23","opt":14,"dm":3,"gap":6},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":0,"y":0,"len":2,"h":1,"ex":1},{"x":5,"y":2,"len":3,"h":0,"ex":1},{"x":1,"y":4,"len":3,"h":1,"ex":-1},{"x":3,"y":1,"len":3,"h":0,"ex":1},{"x":0,"y":1,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":0,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":5,"len":2,"h":1,"ex":-1}],"src":"cand_2_15.json","opt":14,"dm":3,"gap":7},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":0,"y":0,"len":2,"h":1,"ex":1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":2,"y":4,"len":3,"h":1,"ex":-1},{"x":3,"y":1,"len":3,"h":0,"ex":1},{"x":0,"y":1,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":0,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":5,"len":2,"h":1,"ex":-1}],"src":"hard_2_22.json","opt":14,"dm":3,"gap":7},{"cols":6,"rows":6,"cars":[{"x":2,"y":3,"len":3,"h":0,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":-1},{"x":4,"y":2,"len":2,"h":0,"ex":-1},{"x":2,"y":0,"len":2,"h":1,"ex":1},{"x":1,"y":3,"len":3,"h":0,"ex":-1},{"x":4,"y":4,"len":2,"h":1,"ex":-1},{"x":4,"y":5,"len":2,"h":1,"ex":-1},{"x":1,"y":1,"len":3,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":2,"h":0,"ex":-1}],"src":"hard_2_22.json","opt":15,"dm":3,"gap":4},{"cols":6,"rows":6,"cars":[{"x":1,"y":0,"len":3,"h":0,"ex":1},{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":1,"len":2,"h":1,"ex":1},{"x":1,"y":5,"len":2,"h":1,"ex":1},{"x":2,"y":3,"len":2,"h":0,"ex":-1},{"x":0,"y":3,"len":2,"h":1,"ex":1},{"x":4,"y":1,"len":2,"h":0,"ex":1},{"x":5,"y":1,"len":2,"h":0,"ex":1}],"src":"cand_1_8.json","opt":12,"dm":4,"gap":8},{"cols":6,"rows":6,"cars":[{"x":2,"y":2,"len":2,"h":1,"ex":1},{"x":4,"y":2,"len":2,"h":0,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":-1},{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":1,"len":2,"h":1,"ex":-1},{"x":5,"y":1,"len":2,"h":0,"ex":1},{"x":4,"y":5,"len":2,"h":1,"ex":-1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":3,"y":4,"len":3,"h":1,"ex":-1}],"src":"hard_2_22.json","opt":13,"dm":4,"gap":5},{"cols":6,"rows":6,"cars":[{"x":3,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":5,"len":2,"h":1,"ex":-1},{"x":1,"y":1,"len":3,"h":1,"ex":1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":0,"y":3,"len":2,"h":0,"ex":1},{"x":4,"y":0,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":-1}],"src":"v23","opt":13,"dm":4,"gap":6},{"cols":6,"rows":6,"cars":[{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":1,"y":0,"len":2,"h":1,"ex":-1},{"x":3,"y":5,"len":2,"h":1,"ex":1},{"x":3,"y":3,"len":2,"h":1,"ex":1},{"x":3,"y":1,"len":2,"h":0,"ex":-1},{"x":4,"y":1,"len":2,"h":0,"ex":1},{"x":0,"y":3,"len":2,"h":1,"ex":1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":1,"y":2,"len":2,"h":1,"ex":-1},{"x":1,"y":4,"len":2,"h":0,"ex":-1},{"x":5,"y":1,"len":2,"h":0,"ex":1},{"x":2,"y":4,"len":3,"h":1,"ex":1}],"src":"cand_4_30.json","opt":15,"dm":4,"gap":6},{"cols":6,"rows":6,"cars":[{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":1,"y":0,"len":3,"h":1,"ex":1},{"x":5,"y":0,"len":3,"h":0,"ex":1},{"x":3,"y":3,"len":3,"h":0,"ex":-1},{"x":1,"y":1,"len":3,"h":1,"ex":1},{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":1,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":2,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":3,"h":0,"ex":1},{"x":4,"y":5,"len":2,"h":1,"ex":-1}],"src":"hard_1_22.json","opt":13,"dm":4,"gap":7},{"cols":6,"rows":6,"cars":[{"x":1,"y":4,"len":2,"h":0,"ex":-1},{"x":4,"y":0,"len":2,"h":0,"ex":1},{"x":2,"y":2,"len":2,"h":0,"ex":1},{"x":2,"y":4,"len":2,"h":1,"ex":1},{"x":2,"y":5,"len":3,"h":1,"ex":1},{"x":2,"y":0,"len":2,"h":1,"ex":1},{"x":3,"y":2,"len":2,"h":1,"ex":-1},{"x":5,"y":3,"len":3,"h":0,"ex":-1}],"src":"v23","opt":12,"dm":5,"gap":5},{"cols":6,"rows":6,"cars":[{"x":0,"y":2,"len":3,"h":1,"ex":1},{"x":3,"y":2,"len":2,"h":0,"ex":1},{"x":2,"y":3,"len":2,"h":0,"ex":1},{"x":5,"y":4,"len":2,"h":0,"ex":-1},{"x":4,"y":0,"len":2,"h":1,"ex":-1},{"x":0,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":1},{"x":3,"y":1,"len":2,"h":1,"ex":1},{"x":2,"y":0,"len":2,"h":0,"ex":1},{"x":1,"y":5,"len":3,"h":1,"ex":-1}],"src":"hard_3_24.json","opt":14,"dm":4,"gap":7},{"cols":6,"rows":6,"cars":[{"x":2,"y":2,"len":2,"h":1,"ex":1},{"x":4,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":3,"h":0,"ex":-1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":2,"y":0,"len":3,"h":1,"ex":1},{"x":2,"y":1,"len":3,"h":1,"ex":1},{"x":1,"y":1,"len":3,"h":0,"ex":-1}],"src":"v23","opt":15,"dm":4,"gap":4},{"cols":6,"rows":6,"cars":[{"x":3,"y":1,"len":3,"h":0,"ex":-1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":1,"y":4,"len":3,"h":1,"ex":-1},{"x":3,"y":0,"len":3,"h":1,"ex":-1},{"x":4,"y":2,"len":2,"h":1,"ex":-1},{"x":4,"y":3,"len":2,"h":0,"ex":1},{"x":2,"y":0,"len":2,"h":0,"ex":1},{"x":1,"y":1,"len":2,"h":0,"ex":1},{"x":2,"y":5,"len":3,"h":1,"ex":-1},{"x":0,"y":2,"len":2,"h":0,"ex":1}],"src":"hard_2_22.json","opt":16,"dm":4,"gap":4},{"cols":6,"rows":6,"cars":[{"x":1,"y":3,"len":3,"h":0,"ex":-1},{"x":3,"y":1,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":1,"y":0,"len":3,"h":1,"ex":-1},{"x":0,"y":1,"len":2,"h":1,"ex":1},{"x":3,"y":3,"len":2,"h":0,"ex":-1}],"src":"v23","opt":12,"dm":6,"gap":6},{"cols":6,"rows":6,"cars":[{"x":4,"y":4,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":2,"h":1,"ex":1},{"x":3,"y":3,"len":2,"h":0,"ex":1},{"x":0,"y":3,"len":3,"h":1,"ex":1},{"x":2,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":1,"len":2,"h":0,"ex":-1}],"src":"v23","opt":12,"dm":6,"gap":6},{"cols":6,"rows":6,"cars":[{"x":0,"y":5,"len":3,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":3,"len":3,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":1,"y":1,"len":2,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":1,"ex":-1},{"x":5,"y":0,"len":3,"h":0,"ex":1},{"x":2,"y":2,"len":2,"h":0,"ex":-1},{"x":3,"y":2,"len":2,"h":1,"ex":-1},{"x":4,"y":3,"len":3,"h":0,"ex":-1}],"src":"v23","opt":14,"dm":5,"gap":9},{"cols":6,"rows":6,"cars":[{"x":4,"y":1,"len":3,"h":0,"ex":1},{"x":0,"y":2,"len":3,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":1},{"x":1,"y":0,"len":2,"h":1,"ex":-1},{"x":1,"y":5,"len":2,"h":1,"ex":-1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":5,"y":3,"len":2,"h":0,"ex":1},{"x":4,"y":0,"len":2,"h":1,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":1},{"x":3,"y":5,"len":2,"h":1,"ex":-1}],"src":"v23","opt":17,"dm":4,"gap":8},{"cols":6,"rows":6,"cars":[{"x":0,"y":2,"len":2,"h":1,"ex":1},{"x":3,"y":1,"len":3,"h":1,"ex":-1},{"x":1,"y":3,"len":3,"h":1,"ex":-1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":4,"len":2,"h":1,"ex":-1},{"x":4,"y":2,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":0,"ex":1},{"x":2,"y":0,"len":2,"h":1,"ex":1},{"x":1,"y":0,"len":2,"h":0,"ex":1}],"src":"cand_2_15.json","opt":18,"dm":5,"gap":6},{"cols":6,"rows":6,"cars":[{"x":0,"y":2,"len":2,"h":0,"ex":1},{"x":2,"y":0,"len":2,"h":1,"ex":-1},{"x":3,"y":2,"len":2,"h":0,"ex":-1},{"x":1,"y":2,"len":2,"h":0,"ex":-1},{"x":5,"y":2,"len":2,"h":0,"ex":1},{"x":2,"y":1,"len":2,"h":1,"ex":-1},{"x":2,"y":3,"len":3,"h":0,"ex":-1},{"x":5,"y":0,"len":2,"h":0,"ex":1},{"x":4,"y":1,"len":2,"h":0,"ex":-1},{"x":4,"y":3,"len":2,"h":0,"ex":-1},{"x":0,"y":4,"len":2,"h":1,"ex":1}],"src":"v23","opt":17,"dm":4,"gap":9},{"cols":6,"rows":6,"cars":[{"x":0,"y":3,"len":3,"h":1,"ex":1},{"x":0,"y":4,"len":3,"h":1,"ex":1},{"x":3,"y":1,"len":2,"h":1,"ex":1},{"x":1,"y":0,"len":2,"h":0,"ex":1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":5,"y":3,"len":2,"h":0,"ex":-1},{"x":4,"y":2,"len":3,"h":0,"ex":1}],"src":"v23","opt":16,"dm":5,"gap":6},{"cols":6,"rows":6,"cars":[{"x":0,"y":5,"len":3,"h":1,"ex":1},{"x":0,"y":1,"len":2,"h":0,"ex":1},{"x":3,"y":3,"len":3,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":1,"y":1,"len":2,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":1,"ex":-1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":2,"y":2,"len":2,"h":0,"ex":-1},{"x":3,"y":2,"len":2,"h":1,"ex":-1},{"x":4,"y":3,"len":3,"h":0,"ex":-1}],"src":"hard_2_22.json","opt":15,"dm":5,"gap":10},{"cols":6,"rows":6,"cars":[{"x":1,"y":4,"len":3,"h":1,"ex":1},{"x":1,"y":3,"len":3,"h":1,"ex":-1},{"x":1,"y":1,"len":2,"h":0,"ex":1},{"x":5,"y":2,"len":3,"h":0,"ex":1},{"x":4,"y":1,"len":2,"h":1,"ex":-1},{"x":2,"y":1,"len":2,"h":0,"ex":1},{"x":0,"y":2,"len":2,"h":0,"ex":1},{"x":1,"y":0,"len":3,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":0,"ex":-1},{"x":0,"y":5,"len":3,"h":1,"ex":1},{"x":4,"y":0,"len":2,"h":1,"ex":-1}],"src":"cand_2_15.json","opt":15,"dm":6,"gap":8},{"cols":6,"rows":6,"cars":[{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":0,"y":3,"len":3,"h":0,"ex":-1},{"x":3,"y":1,"len":2,"h":0,"ex":-1},{"x":4,"y":4,"len":2,"h":0,"ex":-1},{"x":1,"y":4,"len":3,"h":1,"ex":1},{"x":0,"y":2,"len":2,"h":1,"ex":1},{"x":4,"y":3,"len":2,"h":1,"ex":-1},{"x":2,"y":2,"len":2,"h":0,"ex":-1},{"x":0,"y":1,"len":2,"h":1,"ex":1},{"x":1,"y":5,"len":2,"h":1,"ex":1}],"src":"hard_1_22.json","opt":15,"dm":6,"gap":10},{"cols":6,"rows":6,"cars":[{"x":0,"y":0,"len":3,"h":1,"ex":1},{"x":0,"y":5,"len":3,"h":1,"ex":1},{"x":3,"y":0,"len":3,"h":0,"ex":1},{"x":4,"y":3,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":1},{"x":4,"y":1,"len":2,"h":1,"ex":-1},{"x":2,"y":1,"len":3,"h":0,"ex":-1},{"x":4,"y":4,"len":2,"h":0,"ex":-1},{"x":4,"y":2,"len":2,"h":1,"ex":-1},{"x":0,"y":4,"len":2,"h":1,"ex":1}],"src":"hard_3_24.json","opt":17,"dm":5,"gap":10},{"cols":6,"rows":6,"cars":[{"x":4,"y":3,"len":2,"h":1,"ex":-1},{"x":0,"y":1,"len":3,"h":0,"ex":-1},{"x":3,"y":5,"len":2,"h":1,"ex":1},{"x":1,"y":3,"len":2,"h":0,"ex":1},{"x":3,"y":1,"len":2,"h":1,"ex":-1},{"x":1,"y":5,"len":2,"h":1,"ex":-1},{"x":3,"y":2,"len":2,"h":0,"ex":1},{"x":1,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":1,"ex":1},{"x":3,"y":4,"len":3,"h":1,"ex":-1}],"src":"hard_1_22.json","opt":14,"dm":7,"gap":7},{"cols":6,"rows":6,"cars":[{"x":1,"y":2,"len":2,"h":0,"ex":1},{"x":2,"y":3,"len":3,"h":1,"ex":-1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":3,"y":4,"len":2,"h":1,"ex":1},{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":3,"h":1,"ex":1},{"x":0,"y":2,"len":2,"h":0,"ex":1},{"x":0,"y":4,"len":2,"h":1,"ex":1}],"src":"v23","opt":17,"dm":6,"gap":7},{"cols":6,"rows":6,"cars":[{"x":3,"y":2,"len":2,"h":1,"ex":1},{"x":0,"y":4,"len":2,"h":1,"ex":1},{"x":0,"y":3,"len":3,"h":1,"ex":1},{"x":5,"y":1,"len":3,"h":0,"ex":1},{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":4,"y":3,"len":3,"h":0,"ex":-1},{"x":1,"y":1,"len":2,"h":0,"ex":1},{"x":0,"y":5,"len":2,"h":1,"ex":1},{"x":2,"y":0,"len":3,"h":1,"ex":1},{"x":0,"y":1,"len":2,"h":0,"ex":1}],"src":"hard_2_22.json","opt":18,"dm":6,"gap":6},{"cols":6,"rows":6,"cars":[{"x":2,"y":3,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":1,"ex":-1},{"x":0,"y":4,"len":2,"h":1,"ex":1},{"x":4,"y":1,"len":2,"h":1,"ex":-1},{"x":2,"y":2,"len":3,"h":1,"ex":1},{"x":1,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":2,"h":0,"ex":-1},{"x":0,"y":3,"len":2,"h":1,"ex":1},{"x":5,"y":2,"len":3,"h":0,"ex":-1},{"x":0,"y":0,"len":2,"h":1,"ex":1}],"src":"hard_4_24.json","opt":28,"dm":8,"gap":9},{"cols":6,"rows":6,"cars":[{"x":2,"y":3,"len":2,"h":1,"ex":-1},{"x":3,"y":0,"len":2,"h":0,"ex":1},{"x":1,"y":3,"len":2,"h":0,"ex":-1},{"x":2,"y":2,"len":3,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":1},{"x":1,"y":1,"len":2,"h":1,"ex":-1},{"x":3,"y":5,"len":3,"h":1,"ex":-1},{"x":0,"y":1,"len":2,"h":0,"ex":1},{"x":5,"y":1,"len":2,"h":0,"ex":-1}],"src":"cand_1_9.json","opt":19,"dm":6,"gap":6},{"cols":6,"rows":6,"cars":[{"x":2,"y":4,"len":2,"h":0,"ex":-1},{"x":2,"y":1,"len":2,"h":1,"ex":-1},{"x":4,"y":1,"len":2,"h":1,"ex":-1},{"x":3,"y":3,"len":2,"h":0,"ex":-1},{"x":5,"y":2,"len":3,"h":0,"ex":-1},{"x":3,"y":2,"len":2,"h":1,"ex":1},{"x":1,"y":2,"len":2,"h":1,"ex":1},{"x":0,"y":3,"len":3,"h":1,"ex":1}],"src":"cand_2_15.json","opt":17,"dm":7,"gap":7},{"cols":6,"rows":6,"cars":[{"x":1,"y":0,"len":2,"h":1,"ex":1},{"x":0,"y":2,"len":2,"h":1,"ex":1},{"x":4,"y":1,"len":2,"h":1,"ex":-1},{"x":3,"y":1,"len":2,"h":0,"ex":-1},{"x":4,"y":2,"len":2,"h":0,"ex":-1},{"x":4,"y":4,"len":2,"h":1,"ex":-1},{"x":2,"y":1,"len":2,"h":0,"ex":1},{"x":1,"y":3,"len":2,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":2,"h":0,"ex":1}],"src":"hard_1_22.json","opt":17,"dm":7,"gap":10},{"cols":6,"rows":6,"cars":[{"x":4,"y":4,"len":2,"h":0,"ex":-1},{"x":1,"y":2,"len":2,"h":0,"ex":1},{"x":1,"y":0,"len":2,"h":0,"ex":1},{"x":2,"y":0,"len":2,"h":1,"ex":1},{"x":3,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":3,"h":0,"ex":-1},{"x":4,"y":2,"len":2,"h":1,"ex":-1},{"x":5,"y":3,"len":3,"h":0,"ex":-1},{"x":2,"y":1,"len":3,"h":0,"ex":-1},{"x":1,"y":5,"len":2,"h":1,"ex":1}],"src":"hard_2_22.json","opt":23,"dm":8,"gap":8},{"cols":6,"rows":6,"cars":[{"x":0,"y":1,"len":3,"h":1,"ex":1},{"x":4,"y":4,"len":2,"h":1,"ex":-1},{"x":4,"y":0,"len":2,"h":0,"ex":1},{"x":2,"y":2,"len":3,"h":0,"ex":-1},{"x":3,"y":2,"len":2,"h":1,"ex":1},{"x":0,"y":3,"len":2,"h":1,"ex":1},{"x":5,"y":1,"len":2,"h":0,"ex":-1},{"x":3,"y":3,"len":2,"h":0,"ex":1},{"x":1,"y":4,"len":2,"h":0,"ex":-1},{"x":3,"y":0,"len":2,"h":0,"ex":1}],"src":"hard_4_24.json","opt":25,"dm":9,"gap":13}]
+;const BASE=LEVELS.length;
+// Simetrías del tablero 6x6 (8 transformaciones): conservan exactamente opt y dificultad. t: 1=transponer, 2=espejo horizontal, 4=espejo vertical
+function xform(L,t){const sw=t&1,fx=t&2,fy=t&4;
+ const cars=L.cars.map(c=>{let cells=[];for(let k=0;k<c.len;k++)cells.push(c.h?[c.x+k,c.y]:[c.x,c.y+k]);
+  cells=cells.map(([x,y])=>{if(sw){const q=x;x=y;y=q}if(fx)x=5-x;if(fy)y=5-y;return[x,y]});
+  const xs=cells.map(p=>p[0]),ys=cells.map(p=>p[1]);const h=xs[0]!==xs[xs.length-1]?1:0;
+  let dx=c.h?c.ex:0,dy=c.h?0:c.ex;if(sw){const q=dx;dx=dy;dy=q}if(fx)dx=-dx;if(fy)dy=-dy;
+  return{x:Math.min(...xs),y:Math.min(...ys),len:c.len,h,ex:h?dx:dy}});
+ return Object.assign({},L,{cars})}
+
+
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const $$=0;function el(t,c,x){const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=tr(x);return e}
+
+/* ---------- idioma ES/EN (solo textos; no cambia reglas ni niveles) ---------- */
+let LANGv='es';
+const EN={
+'Modo ayuda: +2 movimientos y una pista gratis':'Help mode: +2 moves and a free hint','¡Salió!':'Out!','Saltar':'Skip',
+'Arrastrá un auto por su carril. Los números marcan el orden de salida: el 1 sale primero, cuando llega a su puerta (la barra de color en el borde).':'Drag a car along its lane. The numbers set the exit order: car 1 leaves first, when it reaches its gate (the colored bar on the edge).',
+'Los autos que no les toca se quedan: usalos de lugar para despejar el camino. Tenés pocos movimientos, ¡planificá!':'Cars that are not up yet stay put: move them aside to clear the way. You have few moves, so plan ahead!',
+'Anuncio de prueba (simulado) · no hay anuncio real ni ingresos':'Test ad (simulated) · no real ad, no revenue','Anuncio':'Ad','Reclamar recompensa':'Claim reward','Omitir (sin recompensa)':'Skip (no reward)',
+'Seguir sin esto':'Continue without it','Deshacer':'Undo','Pista':'Hint','Deshacer gratis':'Free undo','Ya no alcanzan los movimientos: deshacé o reiniciá':'Not enough moves left: undo or restart',
+'Sacá todos los autos en el orden de la fila. Arrastralos por su carril para despejar el camino, con un máximo de movimientos.':'Get every car out in queue order. Drag them along their lanes to clear the way, within a move limit.',
+'Tapiz (progreso)':'Tapestry (progress)','Métricas de prueba':'Test metrics','Sonido':'Sound','Sí':'Yes','No':'No','Idioma':'Language','Guardado':'Saving','En este dispositivo':'On this device','Cargado al abrir':'Loaded at start','Copia en Claude (privada)':'Copy in Claude (private)','Copia en Claude al abrir':'Claude copy at start','Copia en la cuenta del portal':'Copy in the portal account','Último guardado local':'Last local save','Último guardado en Claude':'Last save in Claude','Nivel seleccionado / máximo':'Selected / highest level','Partida en curso':'Game in progress','Dentro de un marco':'Inside a frame','Tablero (px)':'Board (px)','Ventana (px)':'Window (px)','Error de dibujo':'Drawing error','ninguno':'none','Origen':'Origin','BLOQUEADO':'BLOCKED','sin probar':'not tested','nada (partida nueva)':'nothing (new game)','dato local ilegible: respaldado':'unreadable local data: backed up','no disponible':'not available','no disponible (fuera del visor de Claude)':'not available (outside the Claude viewer)','no disponible en esta vista':'not available in this view','no disponible (sin sesión)':'not available (signed out)','error al guardar':'save error','sin datos previos':'no previous data','dato ilegible':'unreadable data','sí':'yes','sí (otro origen)':'yes (other origin)','Partida restaurada':'Game restored','Niveles':'Levels','Arrastrá el auto 1 hasta su portón.':'Drag car 1 to its gate.','Salen en orden: 1, 2, 3… Mové los demás para abrir paso.':'Cars leave in order: 1, 2, 3… Move the others to clear the way.','Sacá los autos en orden: cada uno por su portón.':'Get the cars out in order, each through its own gate.','No se está guardando':'Not saving','Guardado en':'Saved in','este dispositivo':'this device','Progreso recuperado':'Progress restored','nivel máx.':'highest level','Partida nueva: no había progreso guardado':'New game: no saved progress found','No se pudo leer el progreso guardado; no se sobrescribió':'Could not read saved progress; nothing was overwritten','Almacén':'Storage','Cargando…':'Loading…','No hay anuncio disponible ahora. Probá más tarde.':'No ad available right now. Try again later.','No se puede guardar el progreso en esta vista: ver Métricas de prueba › Guardado':'Progress cannot be saved in this view: see Test metrics › Saving','Modo':'Mode','Natural':'Natural','Superdifícil':'Super hard','Todos los niveles, de menos a más difícil.':'All levels, from easier to harder.','Solo los niveles difíciles (5, 15, 25…).':'Only the hard levels (5, 15, 25…).','Solo los superdifíciles (10, 20, 30…).':'Only the super hard levels (10, 20, 30…).','Difícil':'Hard','Superdifícil':'Super hard','+3 mov · 15 ●':'+3 moves · 15 ●','+3 movimientos':'+3 moves','¡Nivel difícil! Un solo movimiento de margen':'Hard level! Tight margin','¡Nivel superdifícil! Sin margen: solo la solución perfecta':'Super hard level! Minimal margin','Modo ayuda: +1 movimiento y una pista gratis':'Help mode: +1 move and a free hint','Premio por nivel difícil incluido':'Hard-level bonus included','Anuncio de prueba (simulado) · pausa tras un nivel difícil':'Test ad (simulated) · break after a hard level','Continuar':'Continue','Tema':'Theme','Autos':'Cars','Animales':'Animals','Sin anuncios (simulado)':'No ads (simulated)',
+'Volver a la partida':'Back to game','Tapiz':'Tapestry','Volver':'Back','Ver tapiz':'View tapestry','Siguiente nivel':'Next level','▶ ×2 monedas':'▶ ×2 coins','Repetir para más estrellas':'Replay for more stars','Menú':'Menu',
+'Sin movimientos':'Out of moves','Reiniciar nivel':'Restart level','+3 movimientos · 15 ●':'+3 moves · 15 ●','▶ +3 movimientos (anuncio opcional)':'▶ +3 moves (optional ad)',
+'Métricas locales':'Local metrics','Solo en este dispositivo · anuncios simulados · NO es ingreso':'This device only · simulated ads · NOT revenue',
+'Sesiones':'Sessions','Días jugados':'Days played','Niveles iniciados':'Levels started','Ganados':'Won','Perdidos':'Lost','Reintentos':'Retries','Movimientos':'Moves','Pistas':'Hints',
+'Anuncios ofrecidos (sim.)':'Ads offered (sim.)','Anuncios iniciados (sim.)':'Ads started (sim.)','Anuncios completos (sim.)':'Ads completed (sim.)','Omitidos (sim.)':'Skipped (sim.)',
+'Mediana tiempo/nivel (s)':'Median time/level (s)','Tiempo jugado (min)':'Time played (min)','Copiar JSON':'Copy JSON','Copiado':'Copied','No se pudo copiar':'Could not copy',
+'Borrar progreso y métricas':'Erase progress and metrics','Tocá otra vez para confirmar':'Tap again to confirm','Bloqueado':'Blocked','El camino a la puerta no está libre':'The path to the gate is not clear','Reiniciar':'Restart'};
+const ENX=[[/^(\d+) × (\d+) · celda (\d+)$/,'$1 × $2 · cell $3'],[/^nivel (\d+), máximo (\d+)$/,'level $1, highest $2'],[/^Nivel (\d+) · Mov\. (\d+) \/ (\d+)$/,'Level $1 · Moves $2 / $3'],[/^Continuar partida · Nivel (\d+) · Mov\. (\d+) \/ (\d+)$/,'Continue game · Level $1 · Moves $2 / $3'],[/^(OK|BLOQUEADO|ERROR al guardar|error|error al guardar) \((.+)\)$/,(m,a,b)=>(a==='BLOQUEADO'?'BLOCKED':a==='ERROR al guardar'||a==='error al guardar'?'save error':a)+' ('+b+')'],[/^🏁 ¡Completaste los (\d+) niveles base! Desde el (\d+) los niveles se generan solos, sin límite\.$/,'🏁 You completed the $1 base levels! From level $2 on, levels are generated automatically, with no limit.'],[/^Cada nivel completado teje un punto del dibujo\. (\d+) niveles\. Después del (\d+) se generan solos, sin límite\.$/,'Each completed level stitches one point of the picture. $1 levels. After level $2 they are generated automatically, with no limit.'],[/^🏁 ¡Completaste todos los niveles de este modo! Estrellas: (\d+) \/ (\d+)$/,'🏁 You completed every level in this mode! Stars: $1 / $2'],
+[/^Nivel (\d+)$/,'Level $1'],[/^Mov\. (\d+) \/ (\d+)$/,'Moves $1 / $2'],[/^Deshacer · gratis( ×\d)?$/,'Undo · free$1'],[/^Pista · gratis( ×\d)?$/,'Hint · free$1'],
+[/^Deshacer · 3 ●$/,'Undo · 3 ●'],[/^Pista · 5 ●$/,'Hint · 5 ●'],[/^¡(\d+) autos salen!$/,'$1 cars exit!'],
+[/^Necesitás (\d+) ● monedas \(tenés (\d+)\)\. Podés ver un anuncio de prueba o seguir sin esto\.$/,'You need $1 ● coins (you have $2). You can watch a test ad or continue without it.'],
+[/^Jugar · Nivel (\d+)$/,'Play · Level $1'],[/^Cada nivel completado teje un punto del dibujo\. (\d+) niveles, (\d+) puntos\.$/,'Each completed level stitches one point of the picture. $1 levels, $2 points.'],
+[/^¡Nivel (\d+) listo!$/,'Level $1 complete!'],[/^(\d+) movimientos \(mejor posible: (\d+)\) · \+(\d+) ●( \(duplicadas\))?$/,(m,a,b,c,d)=>a+' moves (best possible: '+b+') · +'+c+' ●'+(d?' (doubled)':'')],
+[/^Se acabaron los movimientos\. Este nivel se puede resolver en (\d+): probá otro orden\.$/,'You ran out of moves. This level can be solved in $1: try a different order.']];
+function tr(x){x=String(x);if(LANGv!=='en')return x;if(EN[x]!==undefined)return EN[x];
+  let m=x.match(/^▶ (.+) con anuncio$/);if(m)return '▶ '+tr(m[1])+' with ad';
+  for(const[r,t]of ENX){if(r.test(x))return x.replace(r,t)}return x}
+function applyLangStatic(){document.documentElement.lang=LANGv;
+  $('bMenu').setAttribute('aria-label',tr('Menú'));$('bRestart').querySelector('.lb').textContent=tr('Reiniciar');
+  $('c').setAttribute('aria-label',LANGv==='en'?'Board: drag each car along its lane':'Tablero: arrastrá cada auto por su carril')}
+/* ---------- portal (ganchos opcionales; sin SDK real) ---------- */
+/* 2.6.5: versión de distribución (portal) vs. prototipo (Artifact). En portal: sin interruptor 'sin anuncios' ni métricas de prueba */
+const BUILD=String(window.VANTIX_BUILD||'artifact'),REAL=BUILD!=='artifact',DEBUG=!REAL||!!window.VANTIX_DEBUG;
+/* 2.6.7: eventos de juego del portal. gameplayStart solo cuando el tablero queda jugable (nunca en el arranque/menú), sin repetirse;
+   gameplayStop en cada pausa (menú, victoria, derrota, anuncio). */
+let GP=false;
+function gpStart(){if(GP||(typeof BOOT!=='undefined'&&BOOT))return;GP=true;portalCall('gameplayStart')}
+function gpStop(){if(!GP)return;GP=false;portalCall('gameplayStop')}
+function portalCall(n,...a){try{const P=window.VANTIX_PORTAL;if(P&&typeof P[n]==='function')return P[n](...a)}catch(e){}}
+const KEY='chroma_garage_v26';let THEME='cars';let MODE='all'; // all=Natural, hard=solo niveles que terminan en 5, super=solo los que terminan en 0
+
+const PAL=['#2ee6d6','#ff5fa2','#ffd23f','#8b7bff','#ff9a3d','#6ee27d','#5fb3ff','#ff6b5a','#c6e377','#f48fb1','#80deea','#d0a6ff'];
+const PIX=['..##..','.####.','######','#ow#ow','.#..#.'];
+const PIXC={'.':'#243452','#':'#ff5fa2','o':'#2b3550','w':'#9fe3ff'};
+function defM(){return{sessions:0,days:[],started:0,won:0,failed:0,retries:0,moves:0,undos:0,hints:0,adOffered:0,adStarted:0,adCompleted:0,adSkipped:{},times:[],playMs:0}}
+function defS(){return{fails:{},level:1,max:1,coins:10,stars:{},opts:{sound:true,noads:false},tut:false,m:defM()}}
+/* ---------- persistencia (2.6.2): local + almacenamiento del Artifact por usuario; nunca silencia errores ni pierde progreso ---------- */
+const PST={local:'sin probar',localErr:'',loaded:'nada (partida nueva)',cloud:'no disponible',cloudErr:'',cloudLoaded:'—',lastLocal:0,lastCloud:0,
+  frame:(()=>{try{return window.top!==window?'sí':'no'}catch(e){return 'sí (otro origen)'}})(),origin:(()=>{try{return String(location.origin)}catch(e){return '?'}})()};
+let LOCAL_OK=false,BOOT=true;
+function parseState(o){const x=Object.assign(defS(),o);x.opts=Object.assign(defS().opts,o.opts||{});x.m=Object.assign(defM(),o.m||{});return x}
+/* 2.6.6: un único almacén. En el portal lo entrega el adaptador ya inicializado (SDK.data: el juego no arranca hasta que el SDK precargó los datos);
+   en el prototipo es localStorage. Si la lectura falla NO se escribe nada, para no pisar lo guardado. */
+const STORE=window.VANTIX_STORE||{name:'local',get:k=>localStorage.getItem(k),set:(k,v)=>localStorage.setItem(k,v),remove:k=>localStorage.removeItem(k)};
+PST.store=STORE.name==='local'?'este dispositivo':STORE.name;PST.restored=null;PST.readErr='';
+let S=defS();
+try{const r=STORE.get(KEY);LOCAL_OK=true;PST.local='OK';
+  if(r){try{S=parseState(JSON.parse(r));PST.loaded='nivel '+S.level+', máximo '+S.max;PST.restored=true}catch(e){PST.loaded='dato local ilegible: respaldado';PST.restored=false;try{STORE.set(KEY+'_respaldo_'+Date.now(),r)}catch(e2){}}}
+  else PST.restored=false}
+catch(e){PST.local='BLOQUEADO';PST.localErr=String((e&&e.name)||'error');PST.readErr=PST.localErr}
+const M=S.m;LANGv=S.opts.lang||(((portalCall('locale')||navigator.language||'en')+'').slice(0,2)==='es'?'es':'en');applyLangStatic();THEME='cars';MODE=['hard','super'].includes(S.opts.mode)?S.opts.mode:'all';if(REAL)S.opts.noads=false;M.sessions++;{const d=new Date().toISOString().slice(0,10);if(!M.days.includes(d))M.days.push(d)}
+function curSnap(){return{level:G.level,mode:MODE,cols:G.cols,rows:G.rows,cars:G.cars,opt:G.opt,pos:G.pos,moves:G.moves,limit:G.limit,freeHint:G.freeHint,freeUndo:G.freeUndo,last:G.last,stack:G.stack.slice(-60)}}
+function writeLocal(){if(!LOCAL_OK){saveMark(false);return}try{STORE.set(KEY,JSON.stringify(S));PST.lastLocal=Date.now();PST.local='OK';saveMark(true)}catch(e){PST.local='ERROR al guardar';PST.localErr=String((e&&(e.code||e.name))||'error');saveMark(false)}}
+/* indicador discreto de guardado (junto a las monedas): ✓ guardado / ⚠ sin guardar; al tocarlo muestra el detalle */
+function saveMark(ok){const e=document.getElementById('savest');if(!e||BOOT)return;e.classList.toggle('bad',!ok);e.textContent=ok?'✓':'⚠';e.classList.add('flash');clearTimeout(saveMark.t);saveMark.t=setTimeout(()=>e.classList.remove('flash'),900)}
+function saveInfo(){const t=PST.lastLocal?new Date(PST.lastLocal).toLocaleTimeString():'—';
+  if(!LOCAL_OK)return tr('No se está guardando')+(PST.readErr?' ('+PST.readErr+')':PST.localErr?' ('+PST.localErr+')':'');
+  return tr('Guardado en')+' '+tr(PST.store)+' · '+t+(PST.local!=='OK'?' · '+tr(PST.local)+(PST.localErr?' ('+PST.localErr+')':''):'')}
+function starsTotal(){let n=0;for(const k in S.stars)n+=S.stars[k]||0;return n}
+function restoreLine(){if(PST.readErr||!LOCAL_OK)return '⚠ '+tr('No se pudo leer el progreso guardado; no se sobrescribió');
+  if(PST.restored)return tr('Progreso recuperado')+' · '+tr('nivel máx.')+' '+S.max+' · '+starsTotal()+' ★ · '+S.coins+' ●';
+  return tr('Partida nueva: no había progreso guardado')}
+function save(){
+  if(!BOOT){S.savedAt=Date.now();
+    if(typeof G!=='undefined'&&G){if(G.state==='play'&&G.pos.some(p=>p>=0))S.cur=curSnap();else if(G.state==='play')S.cur=null;else if(G.state==='win'||G.state==='fail')S.cur=null}}
+  writeLocal();if(!BOOT)cloudSoon()}
+/* nube: documento privado del jugador en el almacenamiento del Artifact (capacidad db + user) */
+let CREF=null,CBUSY=false,CDIRTY=false,CT=null;
+function cloudSoon(){if(!CREF)return;CDIRTY=true;clearTimeout(CT);CT=setTimeout(cloudFlush,1200)}
+async function cloudFlush(){if(!CREF||CBUSY||!CDIRTY)return;CBUSY=true;CDIRTY=false;
+  try{await CREF.set({v:1,savedAt:S.savedAt||0,level:S.level,max:S.max,json:JSON.stringify(S)});PST.lastCloud=Date.now();PST.cloud='OK';PST.cloudErr=''}
+  catch(e){PST.cloud='error al guardar';PST.cloudErr=String((e&&(e.code||e.name))||'error');if(e&&e.code==='unavailable'&&!cloudFlush.retried){cloudFlush.retried=1;CDIRTY=true;setTimeout(()=>{cloudFlush.retried=0;cloudFlush()},1500+Math.random()*1500)}}
+  CBUSY=false;if(CDIRTY)cloudSoon()}
+function cloudNow(){clearTimeout(CT);if(CDIRTY)cloudFlush()}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){writeLocal();cloudNow()}});
+window.addEventListener('pagehide',()=>{writeLocal();cloudNow()});
+function mergeState(o){ // combina sin perder progreso: máximos y estrellas = el mayor; el resto, del guardado más reciente
+  const before=JSON.stringify(S);const newer=(o.savedAt||0)>(S.savedAt||0);
+  S.max=Math.max(S.max||1,o.max||1);S.stars=S.stars||{};for(const k in (o.stars||{}))S.stars[k]=Math.max(S.stars[k]||0,o.stars[k]||0);
+  S.tut=!!(S.tut||o.tut);S.gen=Object.assign({},o.gen||{},S.gen||{});
+  if(newer){S.level=o.level||S.level;S.coins=typeof o.coins==='number'?o.coins:S.coins;S.opts=Object.assign({},S.opts,o.opts||{});S.fails=o.fails||{};S.cur=o.cur||null;
+    const mm=Object.assign(defM(),o.m||{});for(const k in mm)M[k]=mm[k];S.savedAt=o.savedAt}
+  return JSON.stringify(S)!==before}
+function onStateMerged(){THEME='cars';MODE=['hard','super'].includes(S.opts.mode)?S.opts.mode:'all';if(S.opts.lang){LANGv=S.opts.lang;applyLangStatic()}
+  if(G.state==='menu'&&!G.resume)menuScreen()}
+async function cloudInit(){
+  try{if(!window.claude||typeof window.claude.use!=='function'){PST.cloud='no disponible (fuera del visor de Claude)';return}
+    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);if(!db||!user){PST.cloud='no disponible en esta vista';return}
+    const id=await user.id();if(!id){PST.cloud='no disponible (sin sesión)';return}
+    const ref=db.doc('data/users/'+id+'/garage_v26');const snap=await ref.get();let same=false;
+    if(snap.exists){const d=snap.data()||{};let o=null;try{o=JSON.parse(d.json)}catch(e){}
+      if(o){PST.cloudLoaded='nivel '+(o.level||1)+', máximo '+(o.max||1);if(mergeState(o)){writeLocal();onStateMerged()}same=d.json===JSON.stringify(S)}else PST.cloudLoaded='dato ilegible'}
+    else PST.cloudLoaded='sin datos previos';
+    CREF=ref;PST.cloud='OK';if(!same){CDIRTY=true;cloudFlush()}
+  }catch(e){PST.cloud='error';PST.cloudErr=String((e&&(e.code||e.name))||'error')}
+  finally{if(G.state==='menu'&&!G.resume)menuScreen()}}
+save();
+let AC=null,MG=null,NB=null;
+/* 3.1: audio con volumen maestro + compresor; se desbloquea con el primer toque (iPhone/Android) */
+function acInit(){if(AC)return AC;const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-14;comp.ratio.value=4;MG=AC.createGain();MG.gain.value=1;MG.connect(comp);comp.connect(AC.destination);return AC}
+function unlockAudio(){if(!S.opts.sound)return;try{if(navigator.audioSession&&navigator.audioSession.type!=='playback')navigator.audioSession.type='playback'}catch(e){}
+  try{const a=acInit();if(!a)return;if(a.state!=='running')a.resume();if(!unlockAudio.done){const b=a.createBuffer(1,1,22050),s=a.createBufferSource();s.buffer=b;s.connect(a.destination);s.start(0);unlockAudio.done=1}}catch(e){}}
+['pointerdown','touchend','click','keydown'].forEach(ev=>window.addEventListener(ev,unlockAudio,{capture:true,passive:true}));
+function out(){return MG||AC.destination}
+function tone(f1,f2,d,type,vol,delay){if(!S.opts.sound)return;try{if(!acInit())return;const t0=AC.currentTime+(delay||0),o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f1,t0);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t0+d);g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(vol||.1,t0+.012);g.gain.exponentialRampToValueAtTime(.0001,t0+d);o.connect(g);g.connect(out());o.start(t0);o.stop(t0+d+.02)}catch(e){}}
+function noise(d,vol,delay,fc,q,type){if(!S.opts.sound)return;try{if(!acInit())return;if(!NB){NB=AC.createBuffer(1,AC.sampleRate*1.5,AC.sampleRate);const a=NB.getChannelData(0);for(let k=0;k<a.length;k++)a[k]=Math.random()*2-1}
+  const t0=AC.currentTime+(delay||0),s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=NB;f.type=type||'bandpass';f.frequency.value=fc||1800;f.Q.value=q||1;
+  g.gain.setValueAtTime(.0001,t0);g.gain.exponentialRampToValueAtTime(vol||.1,t0+.008);g.gain.exponentialRampToValueAtTime(.0001,t0+d);s.connect(f);f.connect(g);g.connect(out());s.start(t0,Math.random()*1.2);s.stop(t0+d+.02)}catch(e){}}
+function buzz(ms){try{if(S.opts.sound&&navigator.vibrate)navigator.vibrate(ms)}catch(e){}}
+function fanfare(big){ // festejo: melodía + acorde + chispas + aplausos
+  const N=[523,659,784,1047];N.forEach((f,i)=>{tone(f,0,.2,'triangle',.16,i*.11);tone(f*2,0,.12,'square',.03,i*.11)});
+  const c=.46;[523,659,784,1047].forEach(f=>{tone(f,0,.9,'triangle',.09,c);tone(f*1.005,0,.9,'sawtooth',.018,c)});
+  for(let k=0;k<(big?10:6);k++)tone(1600+Math.random()*1400,0,.09,'sine',.05,c+.1+k*.09);
+  const n=big?46:32;for(let k=0;k<n;k++){const d=.5+Math.random()*1.5;noise(.05+Math.random()*.05,.13*(1-(d-.5)/1.7),d,1500+Math.random()*1800,1.2)}
+  if(big){[.7,1.05,1.4].forEach(d=>{noise(.35,.2,d,180,.8,'lowpass');noise(.25,.08,d+.03,4000,.7)})}}
+function sfx(k,x){
+  if(k==='move'){tone(330,240,.08,'triangle',.11);buzz(8)}
+  else if(k==='exit'){if(x==='bus'){tone(349,0,.16,'square',.05);tone(440,0,.16,'square',.05);tone(349,0,.2,'square',.05,.2);tone(440,0,.2,'square',.05,.2)}
+    else if(x==='truck'){tone(90,170,.4,'sawtooth',.07);noise(.3,.05,0,300,.7,'lowpass')}
+    else{tone(110,520,.36,'sawtooth',.06);tone(220,1040,.36,'sawtooth',.02);noise(.25,.05,0,900,.8)}
+    tone(880,1320,.12,'sine',.05,.18);buzz(18)}
+  else if(k==='bump'){tone(110,80,.09,'square',.05);buzz(14)}
+  else if(k==='win'){fanfare(x);buzz([30,50,30,50,60])}
+  else if(k==='star'){tone(1175+x*220,0,.18,'triangle',.11);tone(2350+x*440,0,.1,'sine',.04)}
+  else if(k==='fail'){tone(392,330,.18,'triangle',.1);tone(330,247,.3,'triangle',.1,.16);buzz(40)}
+  else if(k==='click'){tone(660,0,.04,'sine',.05)}}
+function beep(f,d,t,v){tone(f,0,d,t,(v||.05)*2)}
+function toast(t){const e=$('toast');e.textContent=tr(t);e.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>e.classList.remove('on'),1500)}
+/* ---------- estado ---------- */
+let G={state:'menu',cars:[],pos:[],cols:6,rows:6,level:1,moves:0,limit:0,opt:0,stack:[],anim:[],hint:null,sel:-1,drag:null,last:null,tutStep:-1};
+const tier=l=>l%10===0?2:(l%5===0?1:0); // 0 normal, 1 difícil (5), 2 superdifícil (0)
+const limitFor=(o,dm,l)=>{const t=tier(l);return o+(t===2?0:t===1?1:2)}; // pedido de Pablo: normal +2, difícil +1, superdifícil +0
+const inMode=l=>MODE==='all'||(MODE==='hard'?tier(l)===1:tier(l)===2);
+const listMode=()=>{const top=Math.max(BASE,S.max||1,G.level||1)+10,a=[];for(let i=1;i<=top;i++)if(inMode(i))a.push(i);return a};
+const nextIn=l=>{if(MODE==='all')return l+1;return l+10};
+const entry=()=>MODE==='all'?S.level:(listMode().find(l=>!S.stars[l])||listMode()[0]);
+const helpFor=(dm,l)=>{const t=tier(l);return t===0?(dm>=4?2:1):1};
+const hintsFor=(dm,l)=>tier(l)===2?0:helpFor(dm,l);
+/* ---------- niveles infinitos: más allá del último nivel base ---------- */
+const FB={};
+function fallbackLevel(n){ // variante (simetría) de un nivel base del mismo tipo: misma dificultad exacta, disponible al instante
+  if(FB[n])return FB[n];const t=tier(n),ids=[];for(let i=1;i<=BASE;i++)if(i>BASE*.45&&tier(i)===t)ids.push(i);
+  const k=n-BASE-1,cyc=Math.floor(k/ids.length);const L=LEVELS[ids[(k*7+cyc)%ids.length]-1];return FB[n]=xform(L,1+((cyc+k)%7))}
+function getLevel(n){if(n<=BASE)return LEVELS[n-1];const g=S.gen&&S.gen[n];return g||fallbackLevel(n)}
+const minOptFor=n=>{const t=tier(n);return t===2?17:t===1?15:10};
+const targetFor=n=>{const t=tier(n),b=t===2?24:t===1?20:13;return Math.min(30,b+Math.floor((n-BASE)/15))};
+function workerMain(){ // corre en un Worker: genera un nivel de opt >= meta (mutaciones locales + resolutor BFS)
+  onmessage=e=>{const{n,target,minOpt,budget,seed}=e.data;
+   let a=seed|0;const r=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+   const C=6,R=6,N=10;
+   function randCar(){const h=r()<.5?1:0,len=r()<.3?3:2,ex=r()<.5?1:-1;const x=(r()*(C-(h?len-1:0)))|0,y=(r()*(R-(h?0:len-1)))|0;return{x,y,len,h,ex}}
+   function okLayout(cars){const o=new Set();for(const c of cars){const p=startPos(c);if(p===dockPos(c,C,R))return false;for(const[x,y]of cellsAt(c,p)){const q=x+','+y;if(o.has(q))return false;o.add(q)}}return true}
+   const t0=Date.now();let cars=null,cur=null,best=null;
+   while(!cars&&Date.now()-t0<budget){const t=[];let g=0;while(t.length<N&&g++<500){const c=randCar();if(okLayout(t.concat([c])))t.push(c)}if(t.length<N)continue;const s=solve(t,C,R,null,40000);if(s){cars=t;cur=s}}
+   if(!cars){postMessage({n,fail:1});return}
+   while(cur.opt<target&&Date.now()-t0<budget){const t=cars.slice();const i=(r()*N)|0;
+     if(r()<.6){const c=Object.assign({},t[i]);const m=axisSize(c,C,R)-c.len;const p=Math.max(0,Math.min(m,startPos(c)+(r()<.5?-1:1)));if(c.h)c.x=p;else c.y=p;t[i]=c}else t[i]=randCar();
+     if(!okLayout(t))continue;const s=solve(t,C,R,null,40000);if(s&&s.opt>=cur.opt){cars=t;cur=s}}
+   // profundidad de planificación dm: máx. sobre estados óptimos de movimientos mínimos hasta la próxima salida
+   const alive=p=>p.filter(v=>v>=0).length;
+   function toExit(pos){const n0=alive(pos);let layer=[pos],seen=new Set([keyOf(pos)]),d=0;while(layer.length&&d<14){d++;const nx=[];for(const p of layer){const g=occupy(cars,p,C,R);for(let i=0;i<p.length;i++){if(p[i]<0)continue;for(const q of carMoves(cars,p,i,g,C,R)){const np=applyMove(cars,p,i,q,C,R);if(alive(np)<n0)return d;const k=keyOf(np);if(!seen.has(k)){seen.add(k);nx.push(np)}}}}layer=nx}return 14}
+   const sol=solve(cars,C,R,null,300000);let pos=settle(cars,cars.map(startPos),C,R),dm=0;
+   if(sol)for(const st of sol.path){dm=Math.max(dm,toExit(pos));pos=applyMove(cars,pos,st.i,st.p,C,R)}
+   postMessage({n,level:{cols:C,rows:R,cars:cars.map(c=>({x:c.x,y:c.y,len:c.len,h:c.h,ex:c.ex})),opt:sol?sol.opt:cur.opt,dm,src:'gen'},ok:cur.opt>=minOpt&&dm>=2})}
+}
+let GW=null,GQ=[],GBUSY=false;
+function prefetch(n){ // pide en segundo plano los siguientes niveles (n+1, n+2) si todavía no existen
+  if(n<BASE-2)return;S.gen=S.gen||{};
+  for(let k=1;k<=2;k++){const m=n+k;if(m>BASE&&!S.gen[m]&&!GQ.includes(m))GQ.push(m)}pumpGen()}
+function pumpGen(){
+  if(GBUSY||!GQ.length)return;
+  try{if(!GW){const src=document.getElementById('coreSrc').textContent+';('+workerMain.toString()+')()';GW=new Worker(URL.createObjectURL(new Blob([src],{type:'text/javascript'})));
+    GW.onmessage=e=>{GBUSY=false;const d=e.data;if(d.level&&d.ok){S.gen=S.gen||{};S.gen[d.n]=d.level;M.genOk=(M.genOk||0)+1;
+      Object.keys(S.gen).forEach(k=>{if(+k<G.level-4)delete S.gen[k]});save()}else M.genFail=(M.genFail||0)+1;pumpGen()};
+    GW.onerror=()=>{GBUSY=false;GW=null;GQ=[];M.genErr=(M.genErr||0)+1}}
+    GBUSY=true;const n=GQ.shift();GW.postMessage({n,target:targetFor(n),minOpt:minOptFor(n),budget:50000,seed:n*7717+11})}catch(e){GBUSY=false;GQ=[]}
+}
+function startLevel(l,retry){
+  l=Math.max(1,l);if(MODE==='all')S.level=l;
+  const L=getLevel(l);prefetch(l);
+  const cars=L.cars.map(c=>Object.assign({},c));
+  let pos=settle(cars,cars.map(startPos),L.cols,L.rows);
+  G={state:'play',cars,pos,cols:L.cols,rows:L.rows,level:l,moves:0,limit:limitFor(L.opt,L.dm||0,l),opt:L.opt,stack:[],anim:cars.map(()=>0),hint:null,sel:-1,drag:null,last:null,t0:performance.now(),curs:{x:0,y:0},kb:false,tutStep:(l===1&&!S.tut)?0:-1,freeHint:hintsFor(L.dm||0,l),freeUndo:helpFor(L.dm||0,l)};
+  const ff=(S.fails&&S.fails[l])||0;if(ff>=2){const t2=tier(l)===2;G.limit+=t2?1:2;G.freeHint+=1;setTimeout(()=>toast(t2?'Modo ayuda: +1 movimiento y una pista gratis':'Modo ayuda: +2 movimientos y una pista gratis'),300)}
+  else if(tier(l)>0)setTimeout(()=>toast(tier(l)===2?'¡Nivel superdifícil! Sin margen: solo la solución perfecta':'¡Nivel difícil! Un solo movimiento de margen'),300);
+  M.started++;if(retry)M.retries++;
+  layout();closeOv();hud();tutUI();queueUI();save();gpStart();
+  if(G.tutStep===0)G.hint=nextHint();
+}
+function alive(){return G.pos.some(p=>p>=0)}
+function reachable(i){const g=occupy(G.cars,G.pos,G.cols,G.rows);const mv=carMoves(G.cars,G.pos,i,g,G.cols,G.rows);return mv}
+function commit(i,p,group){
+  if(p===G.pos[i])return;
+  G.stack.push({pos:G.pos.slice(),moves:G.moves,last:G.last});
+  const before=G.pos;
+  const np=applyMove(G.cars,G.pos,i,p,G.cols,G.rows);
+  for(let k=0;k<np.length;k++)if(before[k]>=0&&np[k]<0){G.anim[k]=performance.now();}
+  const exited=np.filter((v,k)=>v<0&&before[k]>=0).length;
+  G.pos=np;
+  if(!group){G.moves++;M.moves++}
+  G.last={i,dir:Math.sign(p-before[i])};G.hint=null;
+  {const k0=np.findIndex((v,k)=>v<0&&before[k]>=0);sfx(exited?'exit':'move',k0>=0?vtype(k0,G.cars[k0].len):0)}
+  if(exited){for(let k=0;k<np.length;k++)if(before[k]>=0&&np[k]<0)exitBurst(k);if(exited>1)toast('¡'+exited+' autos salen!')}
+  hud();queueUI();save();tutAdvance();
+  if(!alive()){G.state='wait';setTimeout(()=>{confetti(tier(G.level)>0);sfx('win',tier(G.level)>0)},250);winScreen()}
+  else if(G.moves>=G.limit){G.state='wait';G.shake=performance.now();setTimeout(()=>{if(G.state==='wait'){sfx('fail');failScreen()}},520)}
+}
+function dockMoveFor(i){ // posición de puerta si el camino está libre
+  const mv=reachable(i);const d=dockPos(G.cars[i],G.cols,G.rows);return mv.includes(d)?d:null;
+}
+function nextHint(){
+  const s=solve(G.cars,G.cols,G.rows,G.pos,200000);if(!s||!s.path.length)return null;return{i:s.path[0].i,p:s.path[0].p,left:s.opt};
+}
+/* ---------- UI ---------- */
+function hud(){
+  $('lv').textContent=tr('Nivel '+G.level)+(tier(G.level)?' · '+tr(tier(G.level)===2?'Superdifícil':'Difícil'):'');$('lv').style.color=tier(G.level)===2?'#ff7a7a':tier(G.level)===1?'#ffd23f':'';
+  const mv=$('mv');mv.textContent=tr('Mov. '+G.moves+' / '+G.limit);mv.classList.toggle('low',G.limit-G.moves<=2);
+  const mb=$('mvbar');if(mb){mb.firstChild.style.width=Math.max(0,Math.min(100,100*(G.limit-G.moves)/Math.max(1,G.limit)))+'%';mb.classList.toggle('low',G.limit-G.moves<=2)}
+  const co=$('coins');if(hud.lastCoins!==undefined&&S.coins>hud.lastCoins){co.classList.remove('pop');void co.offsetWidth;co.classList.add('pop')}hud.lastCoins=S.coins;co.textContent=S.coins+' ●';
+  const L=(id,t)=>{$(id).querySelector('.lb').textContent=tr(t)};
+  L('bMoves','+3 mov · 15 ●');$('bUndo').disabled=!G.stack.length;L('bUndo',G.freeUndo>0?'Deshacer · gratis'+(G.freeUndo>1?' ×'+G.freeUndo:''):'Deshacer · 3 ●');L('bHint',G.freeHint>0?'Pista · gratis'+(G.freeHint>1?' ×'+G.freeHint:''):'Pista · 5 ●');
+}
+function queueUI(){
+  const q=$('queue');q.innerHTML='';
+  let nx=-1;for(let k=0;k<G.pos.length;k++)if(G.pos[k]>=0){nx=k;break}
+  G.cars.forEach((c,k)=>{const b=el('i',(G.pos[k]<0?'done ':'')+(k===nx?'next':''),String(k+1));b.style.background=PAL[k%PAL.length];q.append(b)});
+}
+function tutUI(){
+  const t=$('tut');t.innerHTML='';if(G.tutStep<0)return;
+  const b=el('div','b');
+  b.append(el('span',null,G.tutStep===0?'Arrastrá el auto 1 hasta su portón.':'Salen en orden: 1, 2, 3… Mové los demás para abrir paso.'));
+  b.append(btn('Saltar',null,()=>{G.tutStep=-1;S.tut=true;save();tutUI()}));
+  t.append(b);
+}
+function tutAdvance(){if(G.tutStep<0)return;if(G.tutStep===0){G.tutStep=1;tutUI()}else if(G.tutStep===1&&G.moves>=3){G.tutStep=-1;S.tut=true;save();tutUI()}}
+function btn(l,c,f){const b=el('button',c,l);b.onclick=f;return b}
+function openOv(){const o=$('ov');o.innerHTML='';o.classList.remove('soft');o.classList.add('on');const b=el('div','box');o.append(b);return b}
+function closeOv(){const o=$('ov');o.classList.remove('on','soft');o.innerHTML=''}
+function showAd(reason,reward,back){
+  if(S.opts.noads){reward();return}
+  M.adStarted++;save();
+  if(window.VANTIX_PORTAL&&typeof window.VANTIX_PORTAL.rewarded==='function'){const prev0=G.state;G.state='ad';gpStop();try{window.VANTIX_PORTAL.rewarded((okAd,why)=>{G.state=prev0;if(okAd){M.adCompleted++;save();closeOv();reward()}else{if(why)toast('No hay anuncio disponible ahora. Probá más tarde.');M.adSkipped[reason]=(M.adSkipped[reason]||0)+1;save();if(back)back();else closeOv()}if(G.state==='play')gpStart()})}catch(e){G.state=prev0;if(back)back();else closeOv();if(G.state==='play')gpStart()}return}const prev=G.state;G.state='ad';let n=3,done=false;
+  const b=openOv();b.append(el('span','tag','Anuncio de prueba (simulado) · no hay anuncio real ni ingresos'));b.append(el('h2',null,'Anuncio'));
+  const cd=el('div','cd','3');b.append(cd);
+  const claim=el('button','pri','Reclamar recompensa');claim.disabled=true;const skip=el('button',null,'Omitir (sin recompensa)');b.append(claim,skip);
+  const iv=setInterval(()=>{n--;if(n<=0){clearInterval(iv);done=true;cd.textContent='✓';claim.disabled=false;claim.focus()}else cd.textContent=String(n)},1000);
+  claim.onclick=()=>{if(!done)return;M.adCompleted++;G.state=prev;closeOv();save();reward()};
+  skip.onclick=()=>{clearInterval(iv);M.adSkipped[reason]=(M.adSkipped[reason]||0)+1;G.state=prev;save();if(back)back();else closeOv()};
+}
+function interstitial(done){ // anuncio tras cada nivel difícil (5) o superdifícil (0): SIMULADO, sin red ni ingresos
+  if(S.opts.noads){done();return}
+  M.inter=(M.inter||0)+1;save();
+  if(window.VANTIX_PORTAL&&typeof window.VANTIX_PORTAL.commercial==='function'){const p0=G.state;G.state='ad';try{window.VANTIX_PORTAL.commercial(()=>{G.state=p0;done()})}catch(e){G.state=p0;done()}return}
+  const p0=G.state;G.state='ad';let n=3;const b=openOv();b.append(el('span','tag','Anuncio de prueba (simulado) · pausa tras un nivel difícil'));b.append(el('h2',null,'Anuncio'));
+  const cd=el('div','cd','3');b.append(cd);const go=el('button','pri','Continuar');go.disabled=true;b.append(go);
+  const iv=setInterval(()=>{n--;if(n<=0){clearInterval(iv);cd.textContent='✓';go.disabled=false;go.focus()}else cd.textContent=String(n)},1000);
+  go.onclick=()=>{G.state=p0;closeOv();done()};
+}
+function ask(label,cost,reason,go){ // paga con monedas o con anuncio opcional
+  if(S.coins>=cost){S.coins-=cost;hud();go();return}
+  M.adOffered++;const prev=G.state;G.state='ad';
+  const b=openOv();b.append(el('h2',null,label));
+  b.append(el('p',null,'Necesitás '+cost+' ● monedas (tenés '+S.coins+'). Podés ver un anuncio de prueba o seguir sin esto.'));
+  b.append(btn('▶ '+label+' con anuncio','ad sm',()=>showAd(reason,()=>{G.state=prev;go()},()=>{G.state=prev;closeOv()})));
+  b.append(btn('Seguir sin esto','pri',()=>{G.state=prev;closeOv()}));
+}
+function undo(){
+  if(G.state!=='play'||!G.stack.length)return;
+  const go=()=>{const s=G.stack.pop();G.pos=s.pos;G.moves=s.moves;G.last=s.last;G.anim=G.cars.map(()=>0);G.hint=null;M.undos++;hud();queueUI();save()};
+  if(G.freeUndo>0){G.freeUndo--;go();toast('Deshacer gratis');return}
+  ask('Deshacer',3,'undo',go);
+}
+function useHint(){
+  if(G.state!=='play')return;
+  const go=()=>{M.hints++;const h=nextHint();G.hint=h;if(h&&G.limit-G.moves<h.left)toast('Ya no alcanzan los movimientos: deshacé o reiniciá');hud();save()};
+  if(G.freeHint>0){G.freeHint--;go();hud();return}
+  ask('Pista',5,'hint',go);
+}
+function resumeCur(c){ // restaura exactamente la partida guardada (mismos límites y ayudas restantes)
+  if(c.mode&&c.mode!==MODE){MODE=c.mode;S.opts.mode=MODE}
+  G={state:'play',cars:c.cars.map(o=>Object.assign({},o)),pos:c.pos.slice(),cols:c.cols,rows:c.rows,level:c.level,moves:c.moves,limit:c.limit,opt:c.opt,stack:(c.stack||[]).map(x=>({pos:x.pos.slice(),moves:x.moves,last:x.last})),anim:c.cars.map(()=>0),hint:null,sel:-1,drag:null,last:c.last||null,t0:performance.now(),curs:{x:0,y:0},kb:false,tutStep:-1,freeHint:c.freeHint,freeUndo:c.freeUndo,resume:false};
+  layout();closeOv();hud();tutUI();queueUI();save();gpStart();toast('Partida restaurada')}
+function menuScreen(){
+  if(G.state==='play'){G.resume=true}gpStop();G.state='menu';
+  const b=openOv();const lg=el('div','logo','Chroma Garage');b.append(lg);if(!REAL)b.append(el('p','tag2','3.1'));
+  b.append(el('p',null,'Sacá los autos en orden: cada uno por su portón.'));
+  const cur=(!G.resume&&S.cur&&(S.cur.mode||'all')===MODE&&Array.isArray(S.cur.cars)&&Array.isArray(S.cur.pos)&&S.cur.pos.length===S.cur.cars.length)?S.cur:null;
+  b.append(el('p','restore',restoreLine()));
+  if(PST.local!=='OK'&&PST.cloud!=='OK')b.append(el('p','tag','No se puede guardar el progreso en esta vista: ver Métricas de prueba › Guardado'));
+  if(cur)b.append(btn('Continuar partida · Nivel '+cur.level+' · Mov. '+cur.moves+' / '+cur.limit,'pri',()=>resumeCur(cur)));
+  const play=btn('Jugar · Nivel '+entry(),cur?null:'pri',()=>{G.resume=false;startLevel(entry())});b.append(play);
+  {const rm=el('div','row');rm.append(el('span',null,'Modo'));rm.append(btn(MODE==='all'?'Natural':MODE==='hard'?'Difícil':'Superdifícil',null,()=>{MODE=MODE==='all'?'hard':MODE==='hard'?'super':'all';S.opts.mode=MODE;G.resume=false;save();menuScreen()}));b.append(rm);
+   b.append(el('p','tag2',MODE==='all'?'Todos los niveles, de menos a más difícil.':MODE==='hard'?'Solo los niveles difíciles (5, 15, 25…).':'Solo los superdifíciles (10, 20, 30…).'))}
+  b.append(btn('Niveles',null,levelsScreen));
+  if(DEBUG)b.append(btn('Métricas de prueba',null,metricsScreen));
+  const r1=el('div','row');r1.append(el('span',null,'Sonido'));r1.append(btn(S.opts.sound?'Sí':'No',null,()=>{S.opts.sound=!S.opts.sound;save();menuScreen()}));b.append(r1);
+  const r3=el('div','row');r3.append(el('span',null,'Idioma'));r3.append(btn(LANGv==='es'?'Español':'English',null,()=>{S.opts.lang=LANGv==='es'?'en':'es';LANGv=S.opts.lang;applyLangStatic();save();hud();tutUI();menuScreen()}));b.append(r3);
+  // 2.6.4: opción Animales retirada a pedido de Pablo (no se reconocían como animales); se juega siempre con autos
+  if(!REAL){const r2=el('div','row');r2.append(el('span',null,'Sin anuncios (simulado)'));r2.append(btn(S.opts.noads?'Sí':'No',null,()=>{S.opts.noads=!S.opts.noads;save();menuScreen()}));b.append(r2)}
+  if(G.resume)b.append(btn('Volver a la partida',null,()=>{G.resume=false;G.state='play';closeOv();gpStart()}));
+  play.focus();
+}
+function levelsScreen(){ // 3.0: elegir nivel; muestra estrellas y bloquea lo no alcanzado (Natural)
+  const b=openOv();b.append(el('h2',null,'Niveles'));
+  b.append(el('p','tag2',MODE==='all'?'Natural':MODE==='hard'?'Difícil':'Superdifícil'));
+  const g=el('div','lvgrid');const top=Math.max(BASE,S.max||1);
+  for(let n=1;n<=top;n++){if(!inMode(n))continue;const st=S.stars[n]||0;const locked=MODE==='all'&&n>(S.max||1);
+    const bt=el('button',(tier(n)===2?'t2':tier(n)===1?'t1':'')+(n===entry()?' cur':''));bt.append(document.createTextNode(String(n)));const sm=el('small',null,locked?'🔒':'★'.repeat(st)||'·');bt.append(sm);
+    if(locked)bt.disabled=true;else bt.onclick=()=>{G.resume=false;startLevel(n)};g.append(bt)}
+  b.append(g);b.append(btn('Volver','pri',menuScreen));
+  const c=g.querySelector('.cur');if(c)setTimeout(()=>{try{c.scrollIntoView({block:'center'})}catch(e){}},0)}
+function tapizScreen(){
+  const b=openOv();b.append(el('h2',null,'Tapiz'));
+  b.append(el('p',null,'Cada nivel completado teje un punto del dibujo. '+Math.max(BASE,S.max||1)+' niveles. Después del '+BASE+' se generan solos, sin límite.'));
+  const g=el('div','tap');
+  const flat=PIX.join('');
+  g.style.gridTemplateColumns='repeat(10,1fr)';for(let i=0,top=Math.max(BASE,S.max||1);i<top;i++){const d=el('div',(S.stars[i+1]?'on':''),String(i+1));if(S.stars[i+1])d.style.background=tier(i+1)===2?'#ff5a5a':tier(i+1)===1?'#ffd23f':'#5fb3ff';g.append(d)}
+  b.append(g);b.append(btn('Volver','pri',menuScreen));
+}
+function winScreen(){
+  gpStop();const used=G.moves,o=G.opt;const stars=used<=o?3:used<=o+Math.ceil(o*.15)?2:1;
+  if(stars>(S.stars[G.level]||0))S.stars[G.level]=stars;if(S.fails)S.fails[G.level]=0;
+  const bonus=tier(G.level)===2?40:tier(G.level)===1?20:0;const base=10+stars*5+bonus;S.coins+=base;M.won++;M.times.push(Math.round((performance.now()-G.t0)/1000));if(M.times.length>50)M.times.shift();
+  if(MODE==='all'){if(G.level>=S.max)S.max=G.level+1;S.level=G.level+1}save();hud();G.state='win';
+  const draw=x2=>{
+    const b=openOv();$('ov').classList.add('soft');b.append(el('h2',null,'¡Nivel '+G.level+' listo!'));
+    {const st=el('div','stars');for(let k=0;k<3;k++){const sp=el('span',k<stars?null:'off','★');st.append(sp);if(k<stars)setTimeout(()=>sfx('star',k),120+k*150)}b.append(st)}
+    b.append(el('p',null,used+' movimientos (mejor posible: '+o+') · +'+base+' ●'+(x2?' (duplicadas)':'')));
+    if(bonus)b.append(el('p',null,'Premio por nivel difícil incluido'));
+    if(G.level===BASE&&MODE==='all')b.append(el('p','fin','🏁 ¡Completaste los '+BASE+' niveles base! Desde el '+(BASE+1)+' los niveles se generan solos, sin límite.'));
+    const nxt=MODE==='all'?S.level:nextIn(G.level);
+    const nx=btn(nxt===null?'Ver niveles':'Siguiente nivel','pri',()=>{if(nxt===null){levelsScreen();return}const nl=nxt;if(tier(G.level)>0)interstitial(()=>startLevel(nl));else startLevel(nl)});b.append(nx);
+    if(!x2){M.adOffered++;b.append(btn('▶ ×2 monedas','ad sm',()=>showAd('win_x2',()=>{S.coins+=base;save();hud();G.state='win';draw(true)},()=>{G.state='win';draw(false)})))}
+    b.append(btn('Repetir para más estrellas',null,()=>startLevel(G.level,true)));b.append(btn('Menú',null,menuScreen));nx.focus();
+  };setTimeout(()=>{if(G.state==='win'&&!$('ov').classList.contains('on'))draw(false)},800);
+}
+function failScreen(){
+  gpStop();M.failed++;S.fails=S.fails||{};S.fails[G.level]=(S.fails[G.level]||0)+1;G.state='fail';save();
+  const draw=()=>{
+    const b=openOv();b.append(el('h2',null,'Sin movimientos'));
+    b.append(el('p',null,'Se acabaron los movimientos. Este nivel se puede resolver en '+G.opt+': probá otro orden.'));
+    const rt=btn('Reiniciar nivel','pri',()=>startLevel(G.level,true));b.append(rt);
+    if(S.coins>=15)b.append(btn('+3 movimientos · 15 ●',null,()=>{S.coins-=15;G.limit+=3;G.state='play';closeOv();hud();save();gpStart()}));
+    M.adOffered++;b.append(btn('▶ +3 movimientos (anuncio opcional)','ad sm',()=>showAd('fail_moves',()=>{G.limit+=3;G.state='play';closeOv();hud()},()=>{G.state='fail';draw()})));
+    b.append(btn('Menú',null,menuScreen));rt.focus();
+  };draw();
+}
+function median(a){if(!a.length)return 0;const s=[...a].sort((x,y)=>x-y);return s[s.length>>1]}
+function metricsScreen(){
+  const b=openOv();b.append(el('h2',null,'Métricas locales'));b.append(el('span','tag','Solo en este dispositivo · anuncios simulados · NO es ingreso'));
+  const rows=[['Sesiones',M.sessions],['Días jugados',M.days.length],['Niveles iniciados',M.started],['Ganados',M.won],['Perdidos',M.failed],['Reintentos',M.retries],['Movimientos',M.moves],['Deshacer',M.undos],['Pistas',M.hints],['Anuncios ofrecidos (sim.)',M.adOffered],['Anuncios iniciados (sim.)',M.adStarted],['Anuncios completos (sim.)',M.adCompleted],['Omitidos (sim.)',Object.entries(M.adSkipped).map(([k,v])=>k+':'+v).join(' ')||0],['Mediana tiempo/nivel (s)',median(M.times)],['Tiempo jugado (min)',(M.playMs/60000).toFixed(1)]];
+  const t=document.createElement('table');rows.forEach(([a,v])=>{const tr=document.createElement('tr');tr.append(el('td',null,a),el('td',null,String(v)));t.append(tr)});b.append(t);
+  b.append(el('h3',null,'Guardado'));const t2=document.createElement('table');
+  const hm=x=>x?new Date(x).toLocaleTimeString():'—';
+  [['Almacén',PST.store],['En este dispositivo',PST.local+(PST.localErr?' ('+PST.localErr+')':'')],['Cargado al abrir',PST.loaded],[REAL?'Copia en la cuenta del portal':'Copia en Claude (privada)',PST.cloud+(PST.cloudErr?' ('+PST.cloudErr+')':'')],['Copia en Claude al abrir',PST.cloudLoaded],
+   ['Último guardado local',hm(PST.lastLocal)],['Último guardado en Claude',hm(PST.lastCloud)],['Nivel seleccionado / máximo',S.level+' / '+S.max],['Partida en curso',S.cur?('Nivel '+S.cur.level+' · Mov. '+S.cur.moves+' / '+S.cur.limit):'no'],['Dentro de un marco',PST.frame],['Tablero (px)',Math.round(W)+' × '+Math.round(H)+' · celda '+cell],['Ventana (px)',(window.innerWidth||0)+' × '+(window.innerHeight||0)+' · DPR '+(window.devicePixelRatio||1)],['Error de dibujo',DRAWERR||'ninguno'],['Origen',PST.origin]]
+   .filter(r=>!/Claude/.test(r[0])).forEach(([a,v])=>{const r=document.createElement('tr');r.append(el('td',null,a),el('td',null,String(v)));t2.append(r)});b.append(t2);
+  b.append(btn('Copiar JSON',null,()=>{try{navigator.clipboard.writeText(JSON.stringify(M)).then(()=>toast('Copiado'),()=>toast('No se pudo copiar'))}catch(e){toast('No se pudo copiar')}}));
+  let armed=false;const rs=btn('Borrar progreso y métricas',null,()=>{if(!armed){armed=true;rs.textContent=tr('Tocá otra vez para confirmar');return}LOCAL_OK=false;const r=CREF;CREF=null;clearTimeout(CT);const go=()=>{try{STORE.remove(KEY)}catch(e){}setTimeout(()=>location.reload(),STORE.name==='local'?0:1300)};if(r){r.delete().then(go,go)}else go()});b.append(rs);
+  b.append(btn('Volver','pri',menuScreen));
+}
+/* ---------- dibujo ---------- */
+const cv=$('c'),ctx=cv.getContext('2d');let W=0,H=0,dpr=1,cell=50,ox=0,oy=0;
+let DRAWERR='';
+function fitApp(){ // 2.6.3: si el navegador no da altura al tablero (sin soporte de 100dvh o marco de altura automática), fija la altura en píxeles
+  const app=$('app'),bd=$('board');if(bd.getBoundingClientRect().height>=60)return;
+  // 2.6.7: antes se forzaban 560 px, que en un teléfono apaisado (360 px de alto) dejaba la barra fuera de pantalla
+  const vis=Math.max(window.innerHeight||0,document.documentElement.clientHeight||0);
+  const h=vis>=320?vis:Math.max(vis,Math.min(560,Math.round(((window.screen&&screen.height)||560)*.6)));app.style.height=h+'px';app.classList.add('fixh')}
+function resize(){fitApp();const r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);layout()}
+function layout(){cell=Math.floor(Math.max(Math.min(W/(G.cols+.6),H/(G.rows+.5),46),Math.min(W/(G.cols+1.3),H/(G.rows+1.7))));if(cell>62)cell=Math.max(62,Math.floor(Math.min(W/(G.cols+2.4),H/(G.rows+2.8))));if(cell<10)cell=10;ox=(W-cell*G.cols)/2;oy=(H-cell*G.rows)/2}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function chev(cx,cy,ex,h,s){ctx.save();ctx.translate(cx,cy);ctx.rotate(h?(ex>0?Math.PI/2:-Math.PI/2):(ex>0?Math.PI:0));ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.moveTo(0,-s);ctx.lineTo(s*.9,s*.6);ctx.lineTo(0,s*.15);ctx.lineTo(-s*.9,s*.6);ctx.closePath();ctx.fill();ctx.restore()}
+function curPos(i){return G.drag&&G.drag.i===i?G.drag.f:G.pos[i]}
+
+function shade(h,t){const n=parseInt(h.slice(1),16);let r=n>>16,g=(n>>8)&255,b=n&255;const f=t<0?0:255,k=Math.abs(t);r=Math.round((f-r)*k+r);g=Math.round((f-g)*k+g);b=Math.round((f-b)*k+b);return 'rgb('+r+','+g+','+b+')'}
+function grad(col,wd){const g=ctx.createLinearGradient(0,-wd/2,0,wd/2);g.addColorStop(0,shade(col,.28));g.addColorStop(.55,col);g.addColorStop(1,shade(col,-.28));return g}
+function circ(x,y,r,f){ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fillStyle=f;ctx.fill()}
+function drawVeh(x,y,w,h,c,i){
+  const ang=c.h?(c.ex>0?0:Math.PI):(c.ex>0?Math.PI/2:-Math.PI/2);
+  const l=(c.h?w:h)-cell*.14,wd=(c.h?h:w)-cell*.16;
+  ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(ang);
+  rr(-l/2+2,-wd/2+cell*.06,l,wd,wd*.3);ctx.fillStyle='rgba(0,0,0,.38)';ctx.fill();
+  if(THEME==='animals')drawAnimal(l,wd,i,c.len);else drawCar(l,wd,i,c.len);
+  ctx.restore();
+}
+function vtype(i,len){return len<=2?(i%2?'sedan':'sport'):(i%2?'bus':'truck')}
+function lum(h){const n=parseInt(h.slice(1),16);return((n>>16)*.3+((n>>8)&255)*.59+(n&255)*.11)/255}
+function wheels(l,wd,xs,wl,ww){ctx.fillStyle='#0b0e14';xs.forEach(cx=>{[-1,1].forEach(sd=>{rr(cx-wl/2,sd<0?-wd/2-ww*.4:wd/2-ww*.6,wl,ww,ww*.45);ctx.fill()})})}
+function mirrors(x,wd,col,s){ctx.fillStyle=col;[-1,1].forEach(sd=>{ctx.beginPath();ctx.ellipse(x,sd*(wd/2+s*.6),s*1.1,s*.7,sd*.5,0,7);ctx.fill()})}
+function drawCar(l,wd,i,len){
+  const col=PAL[i%PAL.length],ty=vtype(i,len),glass=ctx.createLinearGradient(-l/2,0,l/2,0);glass.addColorStop(0,'#0f1a2e');glass.addColorStop(1,'#2b4a72');
+  const lite=lum(col)>.55,stripe=lite?'rgba(20,24,34,.8)':'rgba(255,255,255,.9)',edge='rgba(0,0,0,.5)';
+  if(ty==='sport'){
+    wheels(l,wd,[-l*.3,l*.27],cell*.3,cell*.16);
+    // carrocería baja con trompa afinada y guardabarros anchos
+    ctx.beginPath();ctx.moveTo(-l/2+wd*.18,-wd*.48);ctx.quadraticCurveTo(-l*.3,-wd*.56,-l*.12,-wd*.46);ctx.quadraticCurveTo(l*.18,-wd*.4,l*.3,-wd*.5);
+    ctx.quadraticCurveTo(l/2,-wd*.42,l/2,-wd*.12);ctx.lineTo(l/2,wd*.12);ctx.quadraticCurveTo(l/2,wd*.42,l*.3,wd*.5);ctx.quadraticCurveTo(l*.18,wd*.4,-l*.12,wd*.46);
+    ctx.quadraticCurveTo(-l*.3,wd*.56,-l/2+wd*.18,wd*.48);ctx.quadraticCurveTo(-l/2,wd*.46,-l/2,0);ctx.quadraticCurveTo(-l/2,-wd*.46,-l/2+wd*.18,-wd*.48);ctx.closePath();
+    ctx.fillStyle=grad(col,wd);ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=edge;ctx.stroke();
+    // franjas de carrera
+    ctx.fillStyle=stripe;ctx.fillRect(-l/2+cell*.04,-wd*.13,l-cell*.08,wd*.08);ctx.fillRect(-l/2+cell*.04,wd*.05,l-cell*.08,wd*.08);
+    // cabina tipo burbuja, retrasada
+    ctx.beginPath();ctx.moveTo(l*.1,-wd*.3);ctx.quadraticCurveTo(l*.2,0,l*.1,wd*.3);ctx.lineTo(-l*.22,wd*.33);ctx.quadraticCurveTo(-l*.3,0,-l*.22,-wd*.33);ctx.closePath();ctx.fillStyle=glass;ctx.fill();
+    rr(-l*.16,-wd*.22,l*.2,wd*.44,wd*.12);ctx.fillStyle=shade(col,.08);ctx.fill();
+    ctx.fillStyle=stripe;ctx.fillRect(-l*.16,-wd*.13,l*.2,wd*.08);ctx.fillRect(-l*.16,wd*.05,l*.2,wd*.08);
+    // tomas de aire en el capó
+    ctx.fillStyle='rgba(0,0,0,.45)';[-1,1].forEach(sd=>{rr(l*.24,sd*wd*.28-wd*.04,l*.12,wd*.08,wd*.04);ctx.fill()});
+    // alerón trasero
+    rr(-l/2-cell*.03,-wd*.5,cell*.1,wd,cell*.04);ctx.fillStyle='#14171f';ctx.fill();
+    mirrors(l*.06,wd,shade(col,-.15),cell*.06);
+    // faros finos
+    ctx.fillStyle='#fff6c2';[-1,1].forEach(sd=>{ctx.beginPath();ctx.ellipse(l/2-cell*.08,sd*wd*.3,cell*.08,cell*.035,sd*-.5,0,7);ctx.fill()});
+    ctx.fillStyle='#ff3b4f';[-1,1].forEach(sd=>{ctx.fillRect(-l/2+1,sd>0?wd*.2:-wd*.36,cell*.045,wd*.16)});
+  }else if(ty==='sedan'){ // coupé GT de diseño propio: capó largo, cabina atrás, caderas anchas
+    wheels(l,wd,[-l*.3,l*.26],cell*.3,cell*.16);
+    ctx.beginPath();ctx.moveTo(l/2,-wd*.2);ctx.quadraticCurveTo(l/2,-wd*.4,l*.36,-wd*.42);ctx.quadraticCurveTo(l*.1,-wd*.46,-l*.12,-wd*.5);
+    ctx.quadraticCurveTo(-l*.4,-wd*.54,-l/2,-wd*.34);ctx.lineTo(-l/2,wd*.34);ctx.quadraticCurveTo(-l*.4,wd*.54,-l*.12,wd*.5);ctx.quadraticCurveTo(l*.1,wd*.46,l*.36,wd*.42);
+    ctx.quadraticCurveTo(l/2,wd*.4,l/2,wd*.2);ctx.closePath();ctx.fillStyle=grad(col,wd);ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=edge;ctx.stroke();
+    // nervios del capó
+    ctx.strokeStyle='rgba(0,0,0,.25)';ctx.lineWidth=1.3;[-1,1].forEach(sd=>{ctx.beginPath();ctx.moveTo(l*.14,sd*wd*.16);ctx.quadraticCurveTo(l*.32,sd*wd*.2,l/2-cell*.05,sd*wd*.13);ctx.stroke()});
+    // parabrisas curvo
+    ctx.beginPath();ctx.moveTo(l*.15,-wd*.36);ctx.quadraticCurveTo(l*.22,0,l*.15,wd*.36);ctx.lineTo(l*.02,wd*.31);ctx.quadraticCurveTo(l*.07,0,l*.02,-wd*.31);ctx.closePath();ctx.fillStyle=glass;ctx.fill();
+    // techo
+    rr(-l*.2,-wd*.3,l*.23,wd*.6,wd*.14);ctx.fillStyle=shade(col,.1);ctx.fill();
+    // luneta tipo fastback
+    ctx.beginPath();ctx.moveTo(-l*.2,-wd*.27);ctx.lineTo(-l*.33,-wd*.2);ctx.quadraticCurveTo(-l*.36,0,-l*.33,wd*.2);ctx.lineTo(-l*.2,wd*.27);ctx.closePath();ctx.fillStyle=glass;ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.18)';ctx.lineWidth=1;for(let q=1;q<4;q++){ctx.beginPath();ctx.moveTo(-l*.2-q*l*.03,-wd*.22);ctx.lineTo(-l*.2-q*l*.03,wd*.22);ctx.stroke()}
+    // tomas de aire laterales detrás de las puertas
+    ctx.fillStyle='rgba(0,0,0,.5)';[-1,1].forEach(sd=>{ctx.beginPath();ctx.ellipse(-l*.12,sd*wd*.42,l*.07,wd*.035,0,0,7);ctx.fill()});
+    mirrors(l*.04,wd*.92,shade(col,-.15),cell*.06);
+    // faros rasgados y luces traseras en línea
+    ctx.fillStyle='#fff6c2';[-1,1].forEach(sd=>{ctx.beginPath();ctx.moveTo(l/2-cell*.02,sd*wd*.18);ctx.lineTo(l/2-cell*.12,sd*wd*.36);ctx.lineTo(l/2-cell*.15,sd*wd*.3);ctx.closePath();ctx.fill()});
+    ctx.fillStyle='#ff3b4f';ctx.fillRect(-l/2+1,-wd*.3,cell*.04,wd*.6);
+    ctx.fillStyle='#9aa3b5';[-1,1].forEach(sd=>{circ(-l/2+cell*.02,sd*wd*.1,cell*.03,'#9aa3b5')});
+  }else if(ty==='bus'){
+    wheels(l,wd,[-l*.3,l*.3],cell*.3,cell*.15);
+    // caja alta y cuadrada
+    rr(-l/2,-wd/2,l,wd,wd*.12);ctx.fillStyle=col;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=edge;ctx.stroke();
+    // franja de ventanas a ambos lados en toda la longitud
+    const n=6,x0=-l*.42,x1=l*.34,sw=(x1-x0)/n;ctx.fillStyle='#ffffff';[-1,1].forEach(sd=>{ctx.fillRect(x0-l*.02,sd>0?wd*.3:-wd*.46,x1-x0+l*.04,wd*.16)});
+    ctx.fillStyle='#16243c';for(let k=0;k<n;k++)[-1,1].forEach(sd=>{rr(x0+k*sw+sw*.1,sd>0?wd*.32:-wd*.44,sw*.8,wd*.12,wd*.03);ctx.fill()});
+    // techo con escotillas y equipo de aire
+    rr(-l*.42,-wd*.26,l*.76,wd*.52,wd*.06);ctx.fillStyle=shade(col,.22);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.65)';[-l*.3,l*.16].forEach(x=>{rr(x,-wd*.14,l*.09,wd*.28,wd*.04);ctx.fill()});
+    // parabrisas grande al frente con letrero
+    rr(l*.36,-wd*.44,l*.12,wd*.88,wd*.06);ctx.fillStyle='#16243c';ctx.fill();
+    ctx.fillStyle='#ffb020';ctx.fillRect(l*.36,-wd*.3,l*.025,wd*.6);
+    // espejos de bus (brazos hacia adelante)
+    ctx.strokeStyle='#14171f';ctx.lineWidth=Math.max(1.5,cell*.03);[-1,1].forEach(sd=>{ctx.beginPath();ctx.moveTo(l*.46,sd*wd*.46);ctx.lineTo(l/2+cell*.08,sd*(wd/2+cell*.07));ctx.stroke();
+      ctx.fillStyle='#14171f';rr(l/2+cell*.05,sd*(wd/2+cell*.07)-cell*.05,cell*.06,cell*.1,cell*.02);ctx.fill()});
+    // rótulo BUS
+    ctx.save();ctx.fillStyle=lite?'rgba(20,24,34,.85)':'rgba(255,255,255,.95)';ctx.font='900 '+Math.floor(wd*.26)+'px system-ui,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('BUS',-l*.03-cell*.55,1);ctx.restore();
+    ctx.fillStyle='#fff6c2';[-1,1].forEach(sd=>{circ(l/2-cell*.04,sd*wd*.4,cell*.05,'#fff6c2')});
+    ctx.fillStyle='#ff3b4f';[-1,1].forEach(sd=>{ctx.fillRect(-l/2+1,sd>0?wd*.28:-wd*.42,cell*.05,wd*.14)});
+  }else{ // camión
+    wheels(l,wd,[-l*.34,-l*.14,l*.32],cell*.28,cell*.15);
+    rr(-l/2,-wd*.47,l*.64,wd*.94,wd*.06);ctx.fillStyle=shade(col,.25);ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle=edge;ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,.25)';for(let k=1;k<7;k++){ctx.beginPath();ctx.moveTo(-l/2+k*l*.09,-wd*.42);ctx.lineTo(-l/2+k*l*.09,wd*.42);ctx.stroke()}
+    rr(l*.17,-wd*.42,l*.33,wd*.84,wd*.2);ctx.fillStyle=grad(col,wd);ctx.fill();ctx.strokeStyle=edge;ctx.stroke();
+    rr(l*.33,-wd*.36,l*.1,wd*.72,wd*.08);ctx.fillStyle='#16243c';ctx.fill();
+    rr(l*.2,-wd*.3,l*.12,wd*.6,wd*.08);ctx.fillStyle=shade(col,.15);ctx.fill();
+    mirrors(l*.32,wd*.86,'#14171f',cell*.055);
+    ctx.fillStyle='#fff6c2';[-1,1].forEach(sd=>{circ(l/2-cell*.05,sd*wd*.32,cell*.05,'#fff6c2')});
+    ctx.fillStyle='#ff3b4f';[-1,1].forEach(sd=>{ctx.fillRect(-l/2+1,sd>0?wd*.24:-wd*.4,cell*.05,wd*.16)});
+  }
+}
+function drawAnimal(l,wd,i,len){
+  const col=PAL[i%PAL.length],kind=i%3,bw=wd*.8,hr=wd*.37,hx=l/2-hr-cell*.03;
+  // patas
+  ctx.fillStyle=shade(col,-.35);const px=len>2?[-l*.32,-l*.02,l*.2]:[-l*.24,l*.06];
+  px.forEach(cx=>{[-1,1].forEach(sd=>{ctx.beginPath();ctx.ellipse(cx,sd*bw*.5,cell*.1,cell*.07,0,0,7);ctx.fill()})});
+  // cola
+  const tail=[-l/2+cell*.11,0,cell*.12];
+  circ(tail[0],tail[1],tail[2],kind===2?'#fff':shade(col,.25));
+  if(kind===0){ctx.strokeStyle=shade(col,-.1);ctx.lineWidth=cell*.1;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-l/2+cell*.12,0);ctx.quadraticCurveTo(-l/2-cell*.02,cell*.2,-l/2+cell*.08,cell*.32);ctx.stroke()}
+  // cuerpo
+  rr(-l/2+cell*.02,-bw/2,l-hr*1.2-cell*.02,bw,bw*.5);ctx.fillStyle=grad(col,bw);ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='rgba(0,0,0,.4)';ctx.stroke();
+  // manchas / rayas
+  ctx.fillStyle=shade(col,-.22);
+  if(kind===0){for(let k=0;k<(len>2?4:2);k++){ctx.fillRect(-l*.36+k*l*.2,-bw*.44,cell*.09,bw*.28);ctx.fillRect(-l*.36+k*l*.2,bw*.16,cell*.09,bw*.28)}}
+  else if(kind===1){circ(-l*.18,-bw*.2,cell*.1,shade(col,-.22));circ(-l*.02,bw*.22,cell*.09,shade(col,-.22));if(len>2)circ(-l*.34,bw*.12,cell*.1,shade(col,-.22))}
+  else{rr(-l*.3,-bw*.18,l*.42,bw*.36,bw*.18);ctx.fillStyle=shade(col,.35);ctx.fill()}
+  // orejas
+  const ex=hx-hr*.15;ctx.fillStyle=shade(col,-.1);
+  [-1,1].forEach(sd=>{
+    if(kind===0){ctx.fillStyle=shade(col,-.1);ctx.beginPath();ctx.moveTo(ex+hr*.35,sd*hr*.35);ctx.lineTo(ex-hr*.15,sd*hr*1.32);ctx.lineTo(ex-hr*.7,sd*hr*.55);ctx.closePath();ctx.fill();ctx.fillStyle='#ffb3c1';ctx.beginPath();ctx.moveTo(ex+hr*.12,sd*hr*.5);ctx.lineTo(ex-hr*.15,sd*hr*1.05);ctx.lineTo(ex-hr*.45,sd*hr*.6);ctx.closePath();ctx.fill()}
+    else if(kind===1){circ(ex-hr*.2,sd*hr*.82,hr*.34,shade(col,-.1));circ(ex-hr*.2,sd*hr*.82,hr*.17,'#f3c9a5')}
+    else{ctx.fillStyle=shade(col,-.05);ctx.beginPath();ctx.ellipse(ex-hr*.9,sd*hr*.5,hr*.95,hr*.22,0,0,7);ctx.fill();ctx.fillStyle='#ffb3c1';ctx.beginPath();ctx.ellipse(ex-hr*.9,sd*hr*.5,hr*.7,hr*.11,0,0,7);ctx.fill()}
+  });
+  // cabeza
+  circ(hx,0,hr,grad(col,hr*2));ctx.lineWidth=1.5;ctx.strokeStyle='rgba(0,0,0,.4)';ctx.beginPath();ctx.arc(hx,0,hr,0,7);ctx.stroke();
+  circ(hx+hr*.42,0,hr*.44,kind===1?'#f3c9a5':shade(col,.45));
+  circ(hx+hr*.3,-hr*.38,hr*.2,'#fff');circ(hx+hr*.3,hr*.38,hr*.2,'#fff');circ(hx+hr*.36,-hr*.38,hr*.1,'#111');circ(hx+hr*.36,hr*.38,hr*.1,'#111');
+  circ(hx+hr*.78,0,hr*.14,'#3a2230');
+}
+/* 3.0: estado visual (no afecta reglas): posición suavizada, partículas, rebote */
+let VIS=[],PARTS=[],FDT=16,FLASH=0;
+function ease(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2}
+function boardXY(c,p){return{x:ox+(c.h?p:c.x)*cell,y:oy+(c.h?c.y:p)*cell,w:c.h?c.len*cell:cell,h:c.h?cell:c.len*cell}}
+function doorXY(c){const t=cell*.22,bw=cell*G.cols,bh=cell*G.rows;
+  if(c.h)return{x:c.ex>0?ox+bw+cell*.05:ox-cell*.05,y:oy+c.y*cell+cell/2,dx:c.ex,dy:0};return{x:ox+c.x*cell+cell/2,y:c.ex>0?oy+bh+cell*.05:oy-cell*.05,dx:0,dy:c.ex}}
+function burst(x,y,col,n,spd,dir){for(let k=0;k<n;k++){const a=dir?Math.atan2(dir.dy,dir.dx)+(Math.random()-.5)*1.6:Math.random()*6.283,v=spd*(.4+Math.random()*.8);
+  PARTS.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,dec:.9+Math.random()*.8,col,r:cell*(.04+Math.random()*.05),g:0})}}
+function exitBurst(i){const c=G.cars[i],d=doorXY(c);burst(d.x,d.y,PAL[i%PAL.length],14,cell*7,d);FLASH=1}
+function firework(x,y,col){for(let k=0;k<36;k++){const a=k/36*6.283,v=cell*(2.5+Math.random()*1.5);PARTS.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,life:1,dec:.8+Math.random()*.4,col,r:cell*.05,g:cell*2})}}
+function confetti(big){const cols=['#2ee6d6','#ff5fa2','#ffd23f','#8b7bff','#6ee27d','#5fb3ff'];[.45,.8,1.15].slice(0,big?3:1).forEach((d,j)=>setTimeout(()=>firework(ox+cell*G.cols*(.25+.5*Math.random()),oy+cell*G.rows*(.2+.35*Math.random()),cols[(j*2+1)%cols.length]),d*1000));for(let k=0;k<(big?160:120);k++){const x=ox+Math.random()*cell*G.cols;
+  PARTS.push({x,y:oy-cell*.5,vx:(Math.random()-.5)*cell*4,vy:cell*(1+Math.random()*4),life:1,dec:.35+Math.random()*.3,col:cols[k%cols.length],r:cell*(.05+Math.random()*.05),g:cell*6,sq:1,rot:Math.random()*6})}}
+/* 3.1: paisaje alrededor del garaje: pasto, calle, árboles, arbustos, flores y faroles */
+let BG=null,BGK='';
+function rng(s){return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function drawScenery(){
+  const k=W+'x'+H+'x'+cell+'x'+G.level+'x'+dpr;if(BG&&BGK===k)return BG;BGK=k;
+  BG=document.createElement('canvas');BG.width=Math.round(W*dpr);BG.height=Math.round(H*dpr);const c=BG.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);
+  const R=rng(G.level*7919+13),bw=cell*G.cols,bh=cell*G.rows,pad=cell*.2,rw=cell*.32;
+  // pasto
+  const gg=c.createLinearGradient(0,0,0,H);gg.addColorStop(0,'#3f8a4a');gg.addColorStop(1,'#2c6b3a');c.fillStyle=gg;c.fillRect(0,0,W,H);
+  for(let n=0;n<Math.round(W*H/90);n++){const x=R()*W,y=R()*H;c.fillStyle=R()<.5?'rgba(255,255,255,.05)':'rgba(0,40,10,.12)';c.fillRect(x,y,2,3+R()*3)}
+  // vereda y calle alrededor del garaje
+  const X0=ox-pad-rw,Y0=oy-pad-rw,X1=ox+bw+pad+rw,Y1=oy+bh+pad+rw;
+  const box=(x,y,w,h,r,f)=>{c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();c.fillStyle=f;c.fill()};
+  box(X0-cell*.07,Y0-cell*.07,X1-X0+cell*.14,Y1-Y0+cell*.14,cell*.55,'#b9b4a8');
+  box(X0,Y0,X1-X0,Y1-Y0,cell*.48,'#3b4049');
+  c.save();c.strokeStyle='rgba(255,214,90,.75)';c.lineWidth=Math.max(1.5,cell*.03);c.setLineDash([cell*.2,cell*.18]);
+  const m=rw*.5;c.beginPath();const ax=X0+m,ay=Y0+m,aw=X1-X0-2*m,ah=Y1-Y0-2*m,ar=cell*.36;c.moveTo(ax+ar,ay);c.arcTo(ax+aw,ay,ax+aw,ay+ah,ar);c.arcTo(ax+aw,ay+ah,ax,ay+ah,ar);c.arcTo(ax,ay+ah,ax,ay,ar);c.arcTo(ax,ay,ax+aw,ay,ar);c.closePath();c.stroke();c.restore();
+  // zona libre para decorar: fuera de la calle
+  const free=(x,y,r)=>x>-r*.4&&y>-r*.4&&x<W+r*.4&&y<H+r*.4&&(x+r<X0-cell*.1||x-r>X1+cell*.1||y+r<Y0-cell*.1||y-r>Y1+cell*.1);
+  const items=[];const tries=Math.round(W*H/(cell*cell)*3);
+  for(let n=0;n<tries;n++){const r=cell*(R()<.6?.3+R()*.28:.14+R()*.1),x=R()*W,y=R()*H;if(!free(x,y,r))continue;if(items.some(o=>Math.hypot(o.x-x,o.y-y)<(o.r+r)*.95))continue;items.push({x,y,r,t:r>cell*.26?'tree':(R()<.5?'bush':'flowers')})}
+  items.sort((a,b)=>a.y-b.y);
+  const greens=['#2f7d3b','#3a9446','#26683a','#4aa356'];
+  items.forEach(o=>{
+    if(o.t==='tree'){c.fillStyle='rgba(0,0,0,.25)';c.beginPath();c.ellipse(o.x+o.r*.25,o.y+o.r*.3,o.r,o.r*.85,0,0,7);c.fill();
+      const g0=greens[Math.floor(R()*greens.length)];for(let q=0;q<5;q++){const a=q/5*6.283+R(),d=o.r*.42;c.fillStyle=shade(g0,-.12);c.beginPath();c.arc(o.x+Math.cos(a)*d,o.y+Math.sin(a)*d,o.r*.55,0,7);c.fill()}
+      c.fillStyle=g0;c.beginPath();c.arc(o.x,o.y,o.r*.72,0,7);c.fill();c.fillStyle=shade(g0,.18);c.beginPath();c.arc(o.x-o.r*.22,o.y-o.r*.25,o.r*.36,0,7);c.fill();
+      if(R()<.35){c.fillStyle=R()<.5?'#ff6b5a':'#ffd23f';for(let q=0;q<5;q++){c.beginPath();c.arc(o.x+(R()-.5)*o.r*1.2,o.y+(R()-.5)*o.r*1.2,o.r*.07,0,7);c.fill()}}}
+    else if(o.t==='bush'){c.fillStyle='rgba(0,0,0,.2)';c.beginPath();c.ellipse(o.x+o.r*.2,o.y+o.r*.25,o.r*1.1,o.r*.8,0,0,7);c.fill();
+      [[-.45,0],[.45,0],[0,-.3]].forEach(p=>{c.fillStyle='#2f8a3e';c.beginPath();c.arc(o.x+p[0]*o.r,o.y+p[1]*o.r,o.r*.62,0,7);c.fill()});c.fillStyle='#4fae5c';c.beginPath();c.arc(o.x-o.r*.15,o.y-o.r*.35,o.r*.3,0,7);c.fill()}
+    else{const fc=['#ff5fa2','#ffd23f','#ffffff','#8b7bff','#ff9a3d'][Math.floor(R()*5)];for(let q=0;q<6;q++){const x=o.x+(R()-.5)*o.r*2,y=o.y+(R()-.5)*o.r*2;c.fillStyle='#2a6b35';c.beginPath();c.arc(x,y,o.r*.22,0,7);c.fill();c.fillStyle=fc;c.beginPath();c.arc(x,y,o.r*.13,0,7);c.fill()}}
+  });
+  // faroles en las esquinas de la calle
+  [[X0-cell*.07,Y0-cell*.07],[X1+cell*.07,Y0-cell*.07],[X0-cell*.07,Y1+cell*.07],[X1+cell*.07,Y1+cell*.07]].forEach(p=>{
+    const lg=c.createRadialGradient(p[0],p[1],0,p[0],p[1],cell*.55);lg.addColorStop(0,'rgba(255,236,160,.35)');lg.addColorStop(1,'rgba(255,236,160,0)');c.fillStyle=lg;c.beginPath();c.arc(p[0],p[1],cell*.55,0,7);c.fill();
+    c.fillStyle='#2a2f38';c.beginPath();c.arc(p[0],p[1],cell*.09,0,7);c.fill();c.fillStyle='#ffeaa0';c.beginPath();c.arc(p[0],p[1],cell*.05,0,7);c.fill()});
+  return BG}
+function drawBoard(now){
+  {const bg=drawScenery();ctx.drawImage(bg,0,0,W,H)}
+  const bw=cell*G.cols,bh=cell*G.rows,pad=cell*.2,shake=G.shake&&now-G.shake<420?Math.sin((now-G.shake)/30)*cell*.06*(1-(now-G.shake)/420):0;
+  ctx.translate(shake,0);
+  // muro del garaje
+  rr(ox-pad,oy-pad,bw+2*pad,bh+2*pad,cell*.34);const gw=ctx.createLinearGradient(0,oy-pad,0,oy+bh+pad);gw.addColorStop(0,'#8c93a3');gw.addColorStop(1,'#6b7283');ctx.fillStyle=gw;ctx.fill();
+  // asfalto
+  rr(ox-3,oy-3,bw+6,bh+6,cell*.18);const ga=ctx.createLinearGradient(0,oy,0,oy+bh);ga.addColorStop(0,'#252b37');ga.addColorStop(1,'#1d222c');ctx.fillStyle=ga;ctx.fill();
+  // líneas de estacionamiento
+  ctx.save();ctx.strokeStyle='rgba(255,255,255,.075)';ctx.lineWidth=Math.max(1.5,cell*.035);ctx.setLineDash([cell*.22,cell*.16]);
+  for(let x=1;x<G.cols;x++){ctx.beginPath();ctx.moveTo(ox+x*cell,oy+cell*.12);ctx.lineTo(ox+x*cell,oy+bh-cell*.12);ctx.stroke()}
+  for(let y=1;y<G.rows;y++){ctx.beginPath();ctx.moveTo(ox+cell*.12,oy+y*cell);ctx.lineTo(ox+bw-cell*.12,oy+y*cell);ctx.stroke()}
+  ctx.restore();
+  // portones (huecos en el muro con el color de su auto y flecha hacia afuera)
+  const vis=i=>G.pos[i]>=0||(now-G.anim[i]<520);const nx=G.pos.findIndex(v=>v>=0);
+  G.cars.forEach((c,i)=>{if(!vis(i))return;
+    const sh=G.cars.map((d,j)=>j).filter(j=>vis(j)&&G.cars[j].h===c.h&&G.cars[j].ex===c.ex&&(c.h?G.cars[j].y===c.y:G.cars[j].x===c.x));
+    const k=sh.length,j=sh.indexOf(i),seg=cell*.66/k,off=cell*.17+j*seg,t=pad-2;
+    let x,y,w,h;if(c.h){x=c.ex>0?ox+bw+3:ox-pad;y=oy+c.y*cell+off;w=t;h=seg}else{x=ox+c.x*cell+off;y=c.ex>0?oy+bh+3:oy-pad;w=seg;h=t}
+    ctx.save();if(i===nx&&G.state==='play'){ctx.shadowColor=PAL[i%PAL.length];ctx.shadowBlur=cell*(.25+.2*Math.sin(now/220))}
+    rr(x,y,w,h,Math.min(w,h)*.35);ctx.fillStyle=PAL[i%PAL.length];ctx.fill();ctx.restore();
+    if(k===1)chev(x+w/2,y+h/2,c.ex,c.h,Math.min(w,h)*.32)});
+  ctx.translate(-shake,0);
+}
+function draw(now){
+  ctx.clearRect(0,0,W,H);
+  if(VIS.length!==G.pos.length)VIS=G.pos.slice();
+  drawBoard(now);
+  const a8=Math.min(1,FDT*.018);
+  // autos (orden inverso para que el 1 quede encima); posición suavizada hacia la real
+  for(let i=G.cars.length-1;i>=0;i--){
+    const c=G.cars[i];let a=1,lift=0;
+    let p;
+    if(G.pos[i]<0){const t=(now-G.anim[i])/520;if(!(t>=0&&t<1)){VIS[i]=-1;continue}const d0=dockPos(c,G.cols,G.rows);p=d0+(c.ex>0?1:-1)*Math.pow(t,1.7)*3.4;a=t<.7?1:1-(t-.7)/.3}
+    else if(G.drag&&G.drag.i===i){p=G.drag.f;VIS[i]=p;lift=1}
+    else{const tgt=G.pos[i];if(VIS[i]<0||VIS[i]===undefined||Math.abs(VIS[i]-tgt)<.003)VIS[i]=tgt;else VIS[i]+=(tgt-VIS[i])*a8;p=VIS[i]}
+    if(G.bump&&G.bump.i===i&&now-G.bump.t<260)p+=Math.sin((now-G.bump.t)/26)*.06*(1-(now-G.bump.t)/260)*G.bump.d;
+    const q=boardXY(c,p),pad=cell*.09;
+    ctx.save();ctx.globalAlpha=a;
+    if(lift){ctx.translate(q.x+q.w/2,q.y+q.h/2);ctx.scale(1.05,1.05);ctx.translate(-(q.x+q.w/2),-(q.y+q.h/2));ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=cell*.35;ctx.shadowOffsetY=cell*.08}
+    drawVeh(q.x,q.y,q.w,q.h,c,i);ctx.shadowColor='transparent';
+    const isNext=G.pos[i]>=0&&G.pos.findIndex(v=>v>=0)===i;
+    if(isNext&&G.state==='play'){rr(q.x+pad,q.y+pad,q.w-2*pad,q.h-2*pad,cell*.3);ctx.lineWidth=2.5+1.5*(.5+.5*Math.sin(now/240));ctx.strokeStyle='rgba(255,255,255,.95)';ctx.stroke()}
+    {const bx=q.x+q.w/2,by=q.y+q.h/2,r=cell*.2;ctx.beginPath();ctx.arc(bx,by,r,0,7);ctx.fillStyle='rgba(255,255,255,.94)';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='rgba(8,14,26,.55)';ctx.stroke();
+     ctx.fillStyle='#0b1220';ctx.font='800 '+Math.floor(cell*.28)+'px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(i+1),bx,by+1)}
+    if(G.sel===i){rr(q.x+1,q.y+1,q.w-2,q.h-2,cell*.26);ctx.lineWidth=3;ctx.strokeStyle='#ffd23f';ctx.stroke()}
+    ctx.restore();
+  }
+  // pista
+  if(G.hint&&G.state==='play'){const c=G.cars[G.hint.i];if(c&&G.pos[G.hint.i]>=0){const pulse=.5+.5*Math.sin(now/200);const tp=G.hint.p<0?dockPos(c,G.cols,G.rows):G.hint.p;ctx.save();ctx.strokeStyle='rgba(255,255,255,'+(.5+.5*pulse)+')';ctx.setLineDash([6,5]);ctx.lineWidth=3;
+    const q=boardXY(c,tp);rr(q.x+3,q.y+3,q.w-6,q.h-6,cell*.2);ctx.stroke();ctx.restore();
+    // tutorial: mano que muestra el gesto de arrastre
+    if(G.tutStep===0&&!G.drag){const fr=boardXY(c,G.pos[G.hint.i]),to=q,T=(now%1700)/1700,e=ease(Math.min(1,Math.max(0,(T-.15)/.6)));
+      const hx=fr.x+fr.w/2+(to.x-fr.x)*e,hy=fr.y+fr.h/2+(to.y-fr.y)*e,al=T<.85?1:1-(T-.85)/.15;
+      ctx.save();ctx.globalAlpha=al;ctx.beginPath();ctx.arc(hx,hy,cell*.26,0,7);ctx.fillStyle='rgba(255,255,255,.28)';ctx.fill();ctx.beginPath();ctx.arc(hx,hy,cell*.15,0,7);ctx.fillStyle='#fff';ctx.fill();
+      ctx.beginPath();ctx.arc(hx,hy,cell*.15,0,7);ctx.lineWidth=2;ctx.strokeStyle='rgba(13,19,32,.6)';ctx.stroke();ctx.restore()}}}
+  if(G.kb&&G.state==='play'){ctx.save();ctx.strokeStyle='#ffd23f';ctx.lineWidth=2;ctx.setLineDash([4,4]);rr(ox+G.curs.x*cell+4,oy+G.curs.y*cell+4,cell-8,cell-8,cell*.12);ctx.stroke();ctx.restore()}
+  // partículas
+  if(PARTS.length){const dt=FDT/1000;ctx.save();for(let k=PARTS.length-1;k>=0;k--){const P=PARTS[k];P.vy+=P.g*dt;P.x+=P.vx*dt;P.y+=P.vy*dt;P.vx*=.985;P.life-=P.dec*dt;if(P.life<=0||P.y>H+20){PARTS.splice(k,1);continue}
+    ctx.globalAlpha=Math.max(0,Math.min(1,P.life*1.4));ctx.fillStyle=P.col;if(P.sq){P.rot+=dt*6;ctx.save();ctx.translate(P.x,P.y);ctx.rotate(P.rot);ctx.fillRect(-P.r,-P.r*.6,P.r*2,P.r*1.2);ctx.restore()}else{ctx.beginPath();ctx.arc(P.x,P.y,P.r,0,7);ctx.fill()}}ctx.restore()}
+}
+let lastT=performance.now();
+function frame(t){const dt=t-lastT;lastT=t;FDT=Math.min(50,Math.max(1,dt));if(G.state==='play')M.playMs+=dt;try{draw(t)}catch(e){DRAWERR=String((e&&e.name)||'error')+': '+String((e&&e.message)||'').slice(0,80)}requestAnimationFrame(frame)}
+/* ---------- entrada ---------- */
+function carAtCell(x,y){const g=occupy(G.cars,G.pos,G.cols,G.rows);const i=g[y*G.cols+x];return i}
+cv.addEventListener('pointerdown',e=>{
+  if(G.state!=='play')return;G.kb=false;
+  const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;
+  const x=Math.floor((px-ox)/cell),y=Math.floor((py-oy)/cell);if(x<0||y<0||x>=G.cols||y>=G.rows)return;
+  const i=carAtCell(x,y);if(i<0)return;
+  const c=G.cars[i],mv=reachable(i),all=mv.concat([G.pos[i]]);
+  G.drag={i,sx:px,sy:py,p0:G.pos[i],lo:Math.min(...all),hi:Math.max(...all),f:G.pos[i],moved:false,id:e.pointerId};
+  try{cv.setPointerCapture(e.pointerId)}catch(err){}
+});
+cv.addEventListener('pointermove',e=>{
+  const d=G.drag;if(!d||G.state!=='play')return;
+  const r=cv.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;const c=G.cars[d.i];
+  const delta=(c.h?px-d.sx:py-d.sy)/cell;if(Math.abs(delta)*cell>6)d.moved=true;
+  const raw=d.p0+delta;d.f=Math.max(d.lo,Math.min(d.hi,raw));
+  if((raw<d.lo-.18||raw>d.hi+.18)&&!(G.bump&&performance.now()-G.bump.t<350)){G.bump={i:d.i,t:performance.now(),d:raw<d.lo?-1:1};sfx('bump')}
+});
+function endDrag(e){
+  const d=G.drag;if(!d)return;G.drag=null;
+  if(G.state!=='play')return;
+  if(!d.moved){ // toque: si el camino a la puerta está libre, va directo
+    const dp=dockMoveFor(d.i);if(dp!==null&&dp!==G.pos[d.i])commit(d.i,dp);else{G.sel=G.sel===d.i?-1:d.i}
+    return;
+  }
+  let p=Math.round(d.f);p=Math.max(d.lo,Math.min(d.hi,p));
+  if(p!==G.pos[d.i])commit(d.i,p);
+}
+cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',()=>{G.drag=null});
+window.addEventListener('keydown',e=>{
+  const k=e.key;
+  if(G.state==='menu'&&k==='Escape'&&G.resume){G.resume=false;G.state='play';closeOv();return}
+  if(G.state!=='play')return;
+  const arrows={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+  if(arrows[k]){
+    e.preventDefault();G.kb=true;const[dx,dy]=arrows[k];
+    if(G.sel>=0&&G.pos[G.sel]>=0){
+      const c=G.cars[G.sel];
+      if(c.h&&dx!==0||!c.h&&dy!==0){const d=c.h?dx:dy,np=G.pos[G.sel]+d,mv=reachable(G.sel);
+        if(mv.includes(np)){const same=G.last&&G.last.i===G.sel&&G.last.dir===d;commit(G.sel,np,same)}else toast('Bloqueado')}
+      return;
+    }
+    G.curs.x=Math.max(0,Math.min(G.cols-1,G.curs.x+dx));G.curs.y=Math.max(0,Math.min(G.rows-1,G.curs.y+dy));
+  }else if(k==='Enter'||k===' '){
+    if(document.activeElement&&document.activeElement.tagName==='BUTTON')return;e.preventDefault();G.kb=true;
+    if(G.sel>=0&&k===' '){const dp=dockMoveFor(G.sel);if(dp!==null)commit(G.sel,dp);else toast('El camino a la puerta no está libre');return}
+    const i=carAtCell(G.curs.x,G.curs.y);G.sel=(i>=0&&i!==G.sel)?i:-1;
+  }else if(k==='Escape'){if(G.sel>=0)G.sel=-1;else menuScreen()}
+  else if(k==='z'||k==='Z')undo();else if(k==='h'||k==='H')useHint();else if(k==='r'||k==='R')startLevel(G.level,true);
+});
+$('bMenu').onclick=()=>{if(G.state==='play'||G.state==='menu')menuScreen()};
+$('savest').onclick=()=>toast(saveInfo());$('bUndo').onclick=undo;$('bHint').onclick=useHint;$('bMoves').onclick=()=>{if(G.state==='play')ask('+3 movimientos',15,'extra_moves',()=>{G.limit+=3;M.extraMoves=(M.extraMoves||0)+3;hud();save();toast('+3 movimientos')})};$('bRestart').onclick=()=>{if(G.state==='play')startLevel(G.level,true)};
+window.addEventListener('resize',resize);try{new ResizeObserver(()=>resize()).observe($('board'))}catch(e){}
+/* ---------- ganchos de prueba ---------- */
+window.__g2={
+  levels:()=>BASE,gen:()=>S.gen||{},genStats:()=>({ok:M.genOk||0,fail:M.genFail||0,err:M.genErr||0}),lang:()=>LANGv,
+  state:()=>({dm:(getLevel(G.level)||{}).dm||0,state:G.state,level:G.level,moves:G.moves,limit:G.limit,opt:G.opt,alive:G.pos.filter(p=>p>=0).length,coins:S.coins,max:S.max,tut:G.tutStep,stars:S.stars,freeHint:G.freeHint,freeUndo:G.freeUndo,sLevel:S.level,mode:MODE,fails:S.fails}),
+  forceFail:()=>{if(G.state==='play')failScreen()}, // solo para pruebas: simula quedarse sin movimientos
+  levelData:n=>getLevel(n),move:(i,p)=>{if(G.state==='play')commit(i,p)}, // solo para pruebas
+  cars:()=>G.cars.map((c,i)=>({i,x:c.x,y:c.y,len:c.len,h:c.h,ex:c.ex,p:G.pos[i]})),
+  geom:()=>({ox,oy,cell}),
+  start:l=>startLevel(l),
+  path:()=>{const s=solve(G.cars,G.cols,G.rows,G.pos,300000);return s?s.path:null},
+  verifyAll:()=>LEVELS.map((L,k)=>{const cs=L.cars;const s=solve(cs,L.cols,L.rows,null,400000);return{k:k+1,n:cs.length,opt:L.opt,solved:s?s.opt:null}}),
+  metrics:()=>JSON.parse(JSON.stringify(M)),
+  setCoins:n=>{S.coins=n;hud()}
+};
+resize();startLevel(entry());M.started--;G.state='menu';G.resume=false;BOOT=false;
+const FIRST=LOCAL_OK&&!S.tut&&(S.max||1)<=1&&!S.cur&&MODE==='all'&&!(S.stars&&Object.keys(S.stars).length);
+if(FIRST)startLevel(1);else menuScreen();requestAnimationFrame(frame);cloudInit();
+})();
+</script>
+</body>
+</html>
