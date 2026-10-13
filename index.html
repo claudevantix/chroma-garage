@@ -412,9 +412,9 @@ const HOWTO=[['1','#2ee6d6','Cada vehículo tiene un número y un color. Su port
  ['⚡','#6ee27d','Si el siguiente ya está esperando en su portón, sale solo en cadena, sin gastar movimientos.'],
  ['★','#8b7bff','Terminá antes de quedarte sin movimientos: con menos movimientos ganás más estrellas y monedas.'],
  ['?','#5fb3ff','Abajo tenés Deshacer, Pista y +3 movimientos por si te trabás.']];
-function howToScreen(){const b=openOv();b.append(el('h2',null,'Cómo se juega'));const ul=el('ul','howto');
+function howToScreen(fromMenu){const b=openOv();b.append(el('h2',null,'Cómo se juega'));const ul=el('ul','howto');
   HOWTO.forEach(([i,c,x])=>{const li=el('li');const ic=el('span','ic');ic.textContent=i;ic.style.background=c;li.append(ic,el('span',null,x));ul.append(li)});b.append(ul);
-  const go=btn('¡A jugar!','pri',()=>{sfx('click');closeOv()});b.append(go);try{go.focus({preventScroll:true});b.scrollTop=0}catch(e){}}
+  const go=fromMenu?btn('Volver','pri',menuScreen):btn('¡A jugar!','pri',()=>{sfx('click');closeOv()});b.append(go);try{go.focus({preventScroll:true});b.scrollTop=0}catch(e){}}
 function startLevel(l,retry){
   l=Math.max(1,l);if(MODE==='all')S.level=l;
   const L=getLevel(l);prefetch(l);
@@ -523,7 +523,7 @@ function resumeCur(c){ // restaura exactamente la partida guardada (mismos lími
   layout();closeOv();hud();tutUI();queueUI();save();gpStart();toast('Partida restaurada')}
 function menuScreen(){
   if(G.state==='play'){G.resume=true}gpStop();G.state='menu';
-  const b=openOv();const lg=el('div','logo','Chroma Garage');b.append(lg);if(!REAL)b.append(el('p','tag2','3.1.2'));
+  const b=openOv();const lg=el('div','logo','Chroma Garage');b.append(lg);if(!REAL)b.append(el('p','tag2','3.1.3'));
   b.append(el('p',null,'Sacá los autos en orden: cada uno por su portón.'));
   const cur=(!G.resume&&S.cur&&(S.cur.mode||'all')===MODE&&Array.isArray(S.cur.cars)&&Array.isArray(S.cur.pos)&&S.cur.pos.length===S.cur.cars.length)?S.cur:null;
   b.append(el('p','restore',restoreLine()));
@@ -532,7 +532,7 @@ function menuScreen(){
   const play=btn('Jugar · Nivel '+entry(),cur?null:'pri',()=>{G.resume=false;startLevel(entry())});b.append(play);
   {const rm=el('div','row');rm.append(el('span',null,'Modo'));rm.append(btn(MODE==='all'?'Natural':MODE==='hard'?'Difícil':'Superdifícil',null,()=>{MODE=MODE==='all'?'hard':MODE==='hard'?'super':'all';S.opts.mode=MODE;G.resume=false;save();menuScreen()}));b.append(rm);
    b.append(el('p','tag2',MODE==='all'?'Todos los niveles, de menos a más difícil.':MODE==='hard'?'Solo los niveles difíciles (5, 15, 25…).':'Solo los superdifíciles (10, 20, 30…).'))}
-  b.append(btn('Niveles',null,levelsScreen));
+  b.append(btn('Niveles',null,levelsScreen));b.append(btn('Cómo se juega',null,()=>howToScreen(true)));
   if(DEBUG)b.append(btn('Métricas de prueba',null,metricsScreen));
   const r1=el('div','row');r1.append(el('span',null,'Sonido'));r1.append(btn(S.opts.sound?'Sí':'No',null,()=>{S.opts.sound=!S.opts.sound;save();menuScreen()}));b.append(r1);if(S.opts.sound){const r1b=el('div','row');r1b.append(btn('Probar sonido',null,()=>{unlockAudio();setTimeout(()=>{sfx('win',true);toast('Audio: '+audioState())},60)}));b.append(r1b)}
   const r3=el('div','row');r3.append(el('span',null,'Idioma'));r3.append(btn(LANGv==='es'?'Español':'English',null,()=>{S.opts.lang=LANGv==='es'?'en':'es';LANGv=S.opts.lang;applyLangStatic();save();hud();tutUI();menuScreen()}));b.append(r3);
