@@ -45,6 +45,7 @@ button:active{transform:scale(.96)}
 #ov.on{display:flex}#ov.soft{background:rgba(5,9,16,.5)}
 .box{overscroll-behavior:contain;background:var(--panel);border:1px solid #2a3a58;border-radius:20px;padding:20px;width:min(440px,100%);max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:10px}
 .box h2{margin:0;font-size:24px;text-align:center}
+.howto{list-style:none;margin:4px 0;padding:0;display:flex;flex-direction:column;gap:10px}.howto li{display:flex;gap:10px;align-items:flex-start;font-size:15px;line-height:1.35;text-align:left}.howto .ic{flex:0 0 30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#10131c;font-size:15px}@media (max-height:740px){.howto{gap:6px}.howto li{font-size:13.5px;line-height:1.28}.howto .ic{flex-basis:24px;height:24px;font-size:13px}}
 .logo{font-size:34px;font-weight:900;text-align:center;line-height:1.05;background:linear-gradient(90deg,#2ee6d6,#5fb3ff 40%,#ff5fa2 75%,#ffd23f);-webkit-background-clip:text;background-clip:text;color:transparent;margin:2px 0 4px}
 .stars span{display:inline-block;animation:starIn .45s cubic-bezier(.2,1.6,.4,1) both}.stars span:nth-child(2){animation-delay:.15s}.stars span:nth-child(3){animation-delay:.3s}.stars .off{color:#3a4a6b}
 @keyframes starIn{0%{transform:scale(0) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
@@ -210,6 +211,7 @@ const $$=0;function el(t,c,x){const e=document.createElement(t);if(c)e.className
 /* ---------- idioma ES/EN (solo textos; no cambia reglas ni niveles) ---------- */
 let LANGv='es';
 const EN={
+'Cómo se juega':'How to play','¡A jugar!':'Let\'s play!','Cada vehículo tiene un número y un color. Su portón es la puerta del mismo color, en el borde del garaje.':'Each vehicle has a number and a color. Its gate is the door of the same color on the edge of the garage.','Arrastrá los vehículos en línea recta, hacia adelante o hacia atrás, para abrir paso.':'Drag vehicles in a straight line, forward or back, to clear the way.','Salen en orden: primero el 1, después el 2, el 3… Si uno llega a su portón antes de su turno, espera ahí.':'They leave in order: 1 first, then 2, 3… If one reaches its gate before its turn, it waits there.','Si el siguiente ya está esperando en su portón, sale solo en cadena, sin gastar movimientos.':'If the next one is already waiting at its gate, it leaves on its own in a chain, using no moves.','Terminá antes de quedarte sin movimientos: con menos movimientos ganás más estrellas y monedas.':'Finish before you run out of moves: fewer moves earn more stars and coins.','Abajo tenés Deshacer, Pista y +3 movimientos por si te trabás.':'Below you have Undo, Hint and +3 moves in case you get stuck.',
 'Modo ayuda: +2 movimientos y una pista gratis':'Help mode: +2 moves and a free hint','¡Salió!':'Out!','Saltar':'Skip',
 'Arrastrá un auto por su carril. Los números marcan el orden de salida: el 1 sale primero, cuando llega a su puerta (la barra de color en el borde).':'Drag a car along its lane. The numbers set the exit order: car 1 leaves first, when it reaches its gate (the colored bar on the edge).',
 'Los autos que no les toca se quedan: usalos de lugar para despejar el camino. Tenés pocos movimientos, ¡planificá!':'Cars that are not up yet stay put: move them aside to clear the way. You have few moves, so plan ahead!',
@@ -404,6 +406,15 @@ function pumpGen(){
     GW.onerror=()=>{GBUSY=false;GW=null;GQ=[];M.genErr=(M.genErr||0)+1}}
     GBUSY=true;const n=GQ.shift();GW.postMessage({n,target:targetFor(n),minOpt:minOptFor(n),budget:50000,seed:n*7717+11})}catch(e){GBUSY=false;GQ=[]}
 }
+const HOWTO=[['1','#2ee6d6','Cada vehículo tiene un número y un color. Su portón es la puerta del mismo color, en el borde del garaje.'],
+ ['↔','#ffd23f','Arrastrá los vehículos en línea recta, hacia adelante o hacia atrás, para abrir paso.'],
+ ['2','#ff5fa2','Salen en orden: primero el 1, después el 2, el 3… Si uno llega a su portón antes de su turno, espera ahí.'],
+ ['⚡','#6ee27d','Si el siguiente ya está esperando en su portón, sale solo en cadena, sin gastar movimientos.'],
+ ['★','#8b7bff','Terminá antes de quedarte sin movimientos: con menos movimientos ganás más estrellas y monedas.'],
+ ['?','#5fb3ff','Abajo tenés Deshacer, Pista y +3 movimientos por si te trabás.']];
+function howToScreen(){const b=openOv();b.append(el('h2',null,'Cómo se juega'));const ul=el('ul','howto');
+  HOWTO.forEach(([i,c,x])=>{const li=el('li');const ic=el('span','ic');ic.textContent=i;ic.style.background=c;li.append(ic,el('span',null,x));ul.append(li)});b.append(ul);
+  const go=btn('¡A jugar!','pri',()=>{sfx('click');closeOv()});b.append(go);try{go.focus({preventScroll:true});b.scrollTop=0}catch(e){}}
 function startLevel(l,retry){
   l=Math.max(1,l);if(MODE==='all')S.level=l;
   const L=getLevel(l);prefetch(l);
@@ -415,6 +426,7 @@ function startLevel(l,retry){
   M.started++;if(retry)M.retries++;
   layout();closeOv();hud();tutUI();queueUI();save();gpStart();
   if(G.tutStep===0)G.hint=nextHint();
+  if(l===1&&!retry)howToScreen();
 }
 function alive(){return G.pos.some(p=>p>=0)}
 function reachable(i){const g=occupy(G.cars,G.pos,G.cols,G.rows);const mv=carMoves(G.cars,G.pos,i,g,G.cols,G.rows);return mv}
@@ -511,7 +523,7 @@ function resumeCur(c){ // restaura exactamente la partida guardada (mismos lími
   layout();closeOv();hud();tutUI();queueUI();save();gpStart();toast('Partida restaurada')}
 function menuScreen(){
   if(G.state==='play'){G.resume=true}gpStop();G.state='menu';
-  const b=openOv();const lg=el('div','logo','Chroma Garage');b.append(lg);if(!REAL)b.append(el('p','tag2','3.1.1'));
+  const b=openOv();const lg=el('div','logo','Chroma Garage');b.append(lg);if(!REAL)b.append(el('p','tag2','3.1.2'));
   b.append(el('p',null,'Sacá los autos en orden: cada uno por su portón.'));
   const cur=(!G.resume&&S.cur&&(S.cur.mode||'all')===MODE&&Array.isArray(S.cur.cars)&&Array.isArray(S.cur.pos)&&S.cur.pos.length===S.cur.cars.length)?S.cur:null;
   b.append(el('p','restore',restoreLine()));
